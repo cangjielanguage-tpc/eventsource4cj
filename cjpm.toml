@@ -1,0 +1,13 @@
+[dependencies]
+
+[package]
+  cjc-version = "0.53.4"
+  compile-option = ""
+  description = "eventsource4cj"
+  link-option = ""
+  name = "eventsource4cj"
+  output-type = "dynamic"
+  src-dir = "src"
+  target-dir = "target"
+  version = "0.0.1"
+  package-configuration = {}
