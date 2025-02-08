@@ -60,7 +60,7 @@ public class SseServer {
     }
 
     public func publish(endpoint: String): SseEmitter {
-        return publish(endpoint, {broker=>true})
+        return publish(endpoint, {_=>true})
     }
 
     public func publish(endpoint: String, clientConnectedHandler: (SseEmitterBroker)->Bool): SseEmitter {
