@@ -60,13 +60,21 @@ public class SseServer {
     }
 
     public func publish(endpoint: String): SseEmitter {
+        return publish(endpoint, {broker=>true})
+    }
+
+    public func publish(endpoint: String, clientConnectedHandler: (SseEmitterBroker)->Bool): SseEmitter {
         let emitter = SseEmitter.createIfAbsent(endpoint)
 
         server.distributor.register(endpoint, {context =>
-            let broker = SseEmitterBroker(endpoint, SseEmitter.defaultMessageFilterByTag(context));
+            let broker = SseEmitterBroker(endpoint, context)
             emitter.register(broker)
-
-            broker.serve(context)
+            let checked = clientConnectedHandler(broker)
+            if (!checked) {
+                //TODO 取消注册并提示
+                throw Exception("服务端处理连接事件失败!")
+            }
+            broker.serve()
         })
 
         return emitter;
@@ -74,8 +82,6 @@ public class SseServer {
 }
 
 public class SseEmitter {
-    private static let PARAMETER_MESSAGE_TAG = "sse-tag"
-
     private static let lock = ReentrantMutex()
 
     private static let emitterMap = ConcurrentHashMap<String, SseEmitter>(32)
@@ -89,34 +95,11 @@ public class SseEmitter {
         this.endpoint = key
     }
 
-    // private func getBroker(filter: (SseEmitterBroker) -> Bool): ArrayList<SseEmitterBroker> {
-    //     let brokers = ArrayList<SseEmitterBroker>(0)
-    //     //TODO iterator没有collect方法？
-    //     let iter = brokerMap.iterator().filter({t=>filter(t[1])}).enumerate();
-    //     for ((k, v) in brokerMap) {
-    //         brokers.append(v)
-    //     }
-
-    //     return brokers;
-    // }
-
     public func sendAll(message: Message) {
         //TODO 优化批量发送
         for ((k, v) in brokerMap) {
             v.send(message)
         }
-    }
-
-    public func sendByTag(message: Message) {
-        //TODO 优化批量发送
-        for ((k, v) in brokerMap) {
-            v.sendWithFilter(message)
-        }
-    }
-
-    public func sendByRequestParameter(message: Message, parameterName: String, parameterValue: String) {
-        let filter = defaultBrokerFilterByRequestParameterValue(parameterName, parameterValue);
-        send(message, filter)
     }
 
     public func send(message: Message, brokerFilter: (SseEmitterBroker) -> Bool) {
@@ -133,7 +116,7 @@ public class SseEmitter {
         return emitterMap.get(key)
     }
 
-    protected static func defaultBrokerFilterByRequestParameterValue(parameterName: String, parameterValue: String): (SseEmitterBroker) -> Bool {
+    public static func defaultBrokerFilterByRequestParameterValue(parameterName: String, parameterValue: String): (SseEmitterBroker) -> Bool {
         return {broker: SseEmitterBroker=>
             let val = broker.httpContext.request.form.get(parameterName);
             if (val.isNone()) {
@@ -141,18 +124,6 @@ public class SseEmitter {
             } else {
                 let pv = val.getOrDefault({=>""});
                 return pv.trim() == parameterValue;
-            }
-        }
-    }
-
-    protected static func defaultMessageFilterByTag(httpContext: HttpContext): (message: Message) -> Bool {
-        return {message: Message=>
-            let val = httpContext.request.form.get(PARAMETER_MESSAGE_TAG);
-            if (val.isNone()) {
-                return true;
-            } else {
-                let pv = val.getOrDefault({=>""});
-                return message.extention.messageTag.isNone() || pv.trim() == message.extention.messageTag.getOrThrow();
             }
         }
     }
@@ -191,7 +162,7 @@ public class SseEmitter {
     }
 
     private static func getKey(endpoint: String): String {
-        return Regex("[/]*$").matcher(endpoint).replace("");
+        return Regex("[/]{2,}").matcher("/" + endpoint).replace("/");
     }
 }
 
@@ -200,43 +171,31 @@ public class SseEmitterBroker {
 
     let endpoint: String
 
-    var context: Option<HttpContext>
+    var context: HttpContext
 
-    var response: Option<HttpResponseWriter>
+    var response: Option<HttpResponseWriter> = Option.None
 
     //TODO 优化队列空间、消息积压
     var queue = ArrayBlockingQueue(95536, Array<String>())
 
-    var messageFilter = {message: Message=>true}
-
-    public init(endpoint: String) {
-        this.sid = "${DateTime.nowUTC().nanosecond}.${Random().nextInt8()}"
+    public init(endpoint: String, context: HttpContext) {
+        this.sid = "${DateTime.nowUTC().nanosecond}.${Random().nextUInt16()}"
         this.endpoint = endpoint
-        this.context = Option.None
-        this.response = Option.None
-    }
-
-    public init(endpoint: String, messageFilter: (Message)->Bool) {
-        this(endpoint)
-        this.messageFilter = messageFilter
+        this.context = context
     }
 
     public prop httpContext: HttpContext {
         get() {
-            return this.context.getOrThrow()
+            return this.context
         }
     }
 
-    protected func serve(context: HttpContext) {
-        if (this.context.isSome()) {
-            throw Exception("事件发送器已经绑定至连接，禁止重复绑定！")
-        }
-        this.context = Option.Some(context)
-        this.response = Option.Some(HttpResponseWriter(context))
+    protected func serve() {
+        this.response = Option.Some(HttpResponseWriter(this.context))
 
         // 开始发送事件
         //TODO 优化发送性能
-        this.context.getOrThrow().responseBuilder
+        this.context.responseBuilder
             .header("Transfer-encoding", "chunked")
             .header("Content-Type", "text/event-stream")
             .header("Cache-Control", "no-cache")
@@ -253,14 +212,8 @@ public class SseEmitterBroker {
         }
     }
 
-    protected func send(message: Message) {
+    public func send(message: Message) {
         let msg = message.toMessageString();
         queue.enqueue(msg)
-    }
-
-    protected func sendWithFilter(message: Message) {
-        if (this.messageFilter(message)) {
-            send(message)
-        }
     }
 }

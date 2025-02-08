@@ -105,94 +105,94 @@ let sseServer = SseServer(server);
 ```cangjie
 let endpoint = "/bus"
 
-// 发布端点
-let emitter = sseServer.publish(endpoint)
+// 发布端点(客户端连接事件处理回调函数)
+sseServer.publish(endpoint, checkAndInit)
+
+// 发布端点(不传客户端连接事件处理回调函数)
+//sseServer.publish(endpoint)
+
+// 获取端点绑定的消息发送器
+let emitter = SseEmitter.getEmitter(endpoint).getOrThrow();
 
 // 向该端点上的全部连接发送消息
 let message = MessageBuilder().data("hello world").build()
 emitter.sendAll(message)
 
-// 获取端点绑定的消息发送器
-//let emitter = SseEmitter.getEmitter(endpoint).getOrThrow();
+/**
+* 示例：客户端连接事件处理回调函数
+*/
+func checkAndInit(broker: SseEmitterBroker): Bool {
+    let requestContext = broker.httpContext;
+
+    // 模拟权限校验等检查
+    let token = requestContext.request.headers.get("token");
+    if (token.isEmpty()) {
+        let tokenInForm = requestContext.request.form.get("token")
+        let tk = tokenInForm.getOrThrow({=>Exception("用户未登录！！！")})
+        if (tk.size < 1) {
+            return false;
+        }
+    }
+
+    // 业务处理。例如记录已连接请求，然后在相关业务中调用发送方法
+    clients.append(broker);
+
+    return true;
+}
 ```
 
 #### 端点多路复用
 
 功能示例描述: 在同一个端点上发送消息至不同客户端连接
 
-发送不同Tag消息：
-
+方式1：在发布端点的初始化函数中记载不同客户端连接，然后按需求发送
 ```cangjie
-// 构建带Tag的消息
-let message = MessageBuilder()
-    .tag("tag1")
-    .event("test-event")
-    .data("数据行1-" + DateTime.nowUTC().toString())
-    .build();
-let message2 = MessageBuilder()
-    .tag("tag2")
-    .event("test-event")
-    .data("数据行2-" + DateTime.nowUTC().toString())
-    .build();
+let clients = ArrayList<SseEmitterBroker>()
+sseServer.publish(endpoint, {broker=>clients.append(broker);})
+clients.iterator().forEach({broker=>
+    let message = MessageBuilder()
+        .data("数据行1-${DateTime.nowUTC().toString()}")
+        .build();
+    broker.send(message)
+})
+```
 
-// 发送至指定Tag的连接
-emitter.sendByTag(message)
-emitter.sendByTag(message2)
-
-// 发送至全部连接
-emitter.sendAll(message)
-emitter.sendAll(message2)
-
-// 按请求参数发送至不同连接
-emitter.sendByRequestParameter(message, "sse-tag", "tag1")
-emitter.sendByRequestParameter(message2, "sse-tag", "tag2")
-
-// 按请求自定义发送规则
-// 以下示例效果等同于sendByRequestParameter()方法
-func defaultBrokerFilterByRequestParameterValue(parameterName: String, parameterValue: String): (SseEmitterBroker) -> Bool {
-    return {broker: SseEmitterBroker=>
-        let val = broker.httpContext.request.form.get(parameterName);
-        if (val.isNone()) {
-            return false;
-        } else {
-            let pv = val.getOrDefault({=>""});
-            return pv.trim() == parameterValue;
-        }
-    }
-}
-
-emitter.send(message, defaultBrokerFilterByRequestParameterValue("sse-tag", "tag1"))
-emitter.send(message2, defaultBrokerFilterByRequestParameterValue("sse-tag", "tag2"))
+方式2：使用带过滤函数的方法发送消息
+```cangjie
+let emitter = SseEmitter.getEmitter("/bus").getOrThrow();
+let message = MessageBuilder().data("将消息发送给所有请求参数sse-tag=GA的客户端").build();
+emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse-tag", "GA"))
+//let eventsource2 = EventSource("http://127.0.0.1:8080/bus?token=c2-394j590&sse-tag=GA");
 ```
 
 客户端接收与处理消息：
 
 ```cangjie
 // 创建消息源
-let eventsource= Eventsource("http://127.0.0.1:8080/bus", "tag1");
+let eventsource= Eventsource("http://127.0.0.1:8080/bus");
 
 // 设置消息处理函数
-eventsource.onMessage({msg=>println("默认处理消息----------------->${msg.toMessageString()}")})
-eventsource.onEvent("test-event", {msg=>println("处理消息----------------->${msg.toMessageString()}")})
+eventsource.onMessage({msg=>println("默认处理消息：${msg.toMessageString()}")})
+eventsource.onEvent("test-event", {msg=>println("处理消息：${msg.toMessageString()}")})
 
 // 开始订阅消息
 let future = eventsource.subscribe()
 future.get()
 ```
 
-使用浏览器测试：客户端1订阅消息(tag="tag1")：
+使用浏览器测试：客户端1订阅消息：
 
 ```javascript
-const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=tag1');
+const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=GA');
 evtsource.addEventListener('test-event', function(ctx) {
     console.log(ctx);
 })
 ```
 
-使用浏览器测试：客户端2订阅消息(tag="tag2")：
+使用浏览器测试：客户端2订阅消息：
 
 ```javascript
-const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=tag2');
+const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=GB');
 evtsource.addEventListener('test-event', function(ctx) {
     console.log(ctx);
 })

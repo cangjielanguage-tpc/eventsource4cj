@@ -19,7 +19,6 @@ import eventsource4cj.model.*
 public class EventSource {
     let client: Client
     let url: String
-    let tag: Option<String>
     var retryInMills : UInt16 = 30_000
     var lastMessageId: Option<String> = Option.None
     var defaultMessageHandler = {message: Message=>}
@@ -29,14 +28,6 @@ public class EventSource {
         let client = ClientBuilder().readTimeout(365 * 100 * Duration.day).build();
         this.client = client
         this.url = url
-        this.tag = Option.None
-    }
-
-    public init(url: String, tag: Option<String>) {
-        let client = ClientBuilder().readTimeout(365 * 100 * Duration.day).build();
-        this.client = client
-        this.url = url
-        this.tag = tag
     }
 
     public func onMessage(handler: (Message)->Unit) {
@@ -72,16 +63,7 @@ public class EventSource {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
 
-        let endpoint: String;
-        if (tag.isNone()) {
-            endpoint = url;
-        } else {
-            if (url.contains("?")) {
-                endpoint = url + "$sse-tag=" + tag.getOrThrow();
-            } else {
-                endpoint = url + "?sse-tag=" + tag.getOrThrow();
-            }
-        }
+        let endpoint = url
         let req = HttpRequestBuilder()
             .url(endpoint)
             .addHeaders(headers)
