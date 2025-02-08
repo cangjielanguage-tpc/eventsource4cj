@@ -190,6 +190,12 @@ public class SseEmitterBroker {
         }
     }
 
+    public prop lastEventId: Option<String> {
+        get() {
+            return this.context.request.headers.getFirst("Last-Event-ID")
+        }
+    }
+
     protected func serve() {
         this.response = Option.Some(HttpResponseWriter(this.context))
 
