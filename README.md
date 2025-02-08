@@ -38,6 +38,7 @@
 ├── README.md                   #整体介绍
 ├── doc                         #文档目录，包括设计文档，API接口文档等
 │   ├── design.md               #设计文档
+│   ├── example.md              #示例代码
 │   └── feature_api.md          #特性接口文档
 ├── src                         #源码目录
 │   └── client                  #客户端实现
@@ -62,7 +63,7 @@
 修改cjpm.toml文件，添加本项目依赖：
 ```tmol
 [dependencies]
-  eventsource4cj = { git = "https://gitcode.com/hashli/eventsource4cj.git", branch = "main" }
+  eventsource4cj = { git = "https://gitcode.com/Cangjie-SIG/eventsource4cj.git", branch = "main" }
 ```
 
 编译运行：
@@ -74,7 +75,7 @@ cjpm run
 
 ### 功能示例
 
-完整示例代码请参考帮助文档[示例](./doc/example.md)
+完整示例代码请参考帮助文档，详见 [示例](./doc/example.md)
 
 #### 创建SSE服务
 
@@ -102,12 +103,17 @@ let sseServer = SseServer(server);
 发布一个端点并发送消息：
 
 ```cangjie
-// 发布端口
-let emitter = sseServer.publish("/bus")
+let endpoint = "/bus"
+
+// 发布端点
+let emitter = sseServer.publish(endpoint)
 
 // 向该端点上的全部连接发送消息
 let message = MessageBuilder().data("hello world").build()
 emitter.sendAll(message)
+
+// 获取端点绑定的消息发送器
+//let emitter = SseEmitter.getEmitter(endpoint).getOrThrow();
 ```
 
 #### 端点多路复用
@@ -155,8 +161,8 @@ func defaultBrokerFilterByRequestParameterValue(parameterName: String, parameter
     }
 }
 
-emitter.send(message, defaultBrokerFilterByRequestParameterValue)
-emitter.send(message2, defaultBrokerFilterByRequestParameterValue)
+emitter.send(message, defaultBrokerFilterByRequestParameterValue("sse-tag", "tag1"))
+emitter.send(message2, defaultBrokerFilterByRequestParameterValue("sse-tag", "tag2"))
 ```
 
 客户端接收与处理消息：
@@ -174,7 +180,7 @@ let future = eventsource.subscribe()
 future.get()
 ```
 
-浏览器测试：客户端1订阅消息(tag="tag1")：
+使用浏览器测试：客户端1订阅消息(tag="tag1")：
 
 ```javascript
 const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=tag1');
@@ -183,7 +189,7 @@ evtsource.addEventListener('test-event', function(ctx) {
 })
 ```
 
-浏览器测试：客户端2订阅消息(tag="tag2")：
+使用浏览器测试：客户端2订阅消息(tag="tag2")：
 
 ```javascript
 const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=tag2');
