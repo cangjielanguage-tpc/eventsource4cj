@@ -22,6 +22,7 @@ import eventsource4cj.client.*
 
 let clients = ArrayList<SseEmitterBroker>()
 let messageCount = AtomicInt64(0)
+let endpoint = "/bus"
 
 main(): Int64 {
     println("hello world")
@@ -33,7 +34,7 @@ main(): Int64 {
 
     // 启动客户端
     let eventsource1 = EventSource("http://127.0.0.1:8080/bus?token=c1-89uy93r");
-    let eventsource2 = EventSource("http://127.0.0.1:8080/bus?token=c2-394j590");
+    let eventsource2 = EventSource("http://127.0.0.1:8080/bus?token=c2-394j590&sse-tag=GA");
 
     // 注册事件处理函数
     eventsource1.onMessage({msg=>println("客户端1-默认处理消息----------------->");println(msg.toMessageString())})
@@ -59,9 +60,9 @@ func serve(): Int64 {
     // 添加一个示例页面，可以在浏览器访问"127.0.0.1:8080/hello"来测试消息订阅
     addExamplePage(sseServer.getHttpServer())
 
-    let endpoint = "/bus"
-
     sseServer.publish(endpoint, checkAndInit)
+
+    sseServer.publish("/bus2")
 
     doBusiness()
 
@@ -96,7 +97,8 @@ func checkAndInit(broker: SseEmitterBroker): Bool {
 * 模拟业务端异步发送消息
 */
 func doBusiness(): Unit {
-    Timer.repeat(0 * Duration.second, 5 * Duration.second, {=>        
+    Timer.repeat(0 * Duration.second, 5 * Duration.second, {=>
+        // 遍历全部客户端发送消息
         clients.iterator().forEach({broker=>
             let index = messageCount.fetchAdd(1);
             let message = MessageBuilder()
@@ -109,6 +111,11 @@ func doBusiness(): Unit {
             println("add message-------------${message.toMessageString()}\n")
             broker.send(message)
         })
+
+        // 按请求参数过滤后发送
+        let emitter = SseEmitter.getEmitter("/bus").getOrThrow();
+        let message = MessageBuilder().data("将消息发送给所有请求参数sse-tag=GA的客户端").build();
+        emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse-tag", "GA"))
     })
 }
 

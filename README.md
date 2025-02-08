@@ -165,7 +165,9 @@ emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse
 //let eventsource2 = EventSource("http://127.0.0.1:8080/bus?token=c2-394j590&sse-tag=GA");
 ```
 
-客户端接收与处理消息：
+#### 客户端接收与处理消息
+
+使用内置客户端：
 
 ```cangjie
 // 创建消息源
@@ -180,7 +182,7 @@ let future = eventsource.subscribe()
 future.get()
 ```
 
-使用浏览器测试：客户端1订阅消息：
+使用浏览器测试-客户端1订阅消息：
 
 ```javascript
 const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=GA');
@@ -189,7 +191,7 @@ evtsource.addEventListener('test-event', function(ctx) {
 })
 ```
 
-使用浏览器测试：客户端2订阅消息：
+使用浏览器测试-客户端2订阅消息：
 
 ```javascript
 const evtsource = new EventSource('http://127.0.0.1:8080/bus?sse-tag=GB');
