@@ -165,9 +165,12 @@ public class SseEmitter {
         } else {
             lock.lock()
             try {
-                let em = SseEmitter(endpoint);
-                emitterMap.put(key, em);
-                return em;
+                if (!emitterMap.contains(key)) {
+                    let em = SseEmitter(endpoint);
+                    emitterMap.put(key, em);
+                }
+                
+                return emitterMap.get(key).getOrThrow();
             } finally {
                 lock.unlock()
             }
@@ -234,7 +237,7 @@ public class SseEmitterBroker {
         // 开始发送事件
         //TODO 优化发送性能
         this.context.getOrThrow().responseBuilder
-            .header("transfer-encoding", "chunked")
+            .header("Transfer-encoding", "chunked")
             .header("Content-Type", "text/event-stream")
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")

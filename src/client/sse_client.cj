@@ -20,7 +20,7 @@ public class EventSource {
     let client: Client
     let url: String
     let tag: Option<String>
-    var retryInMills = 30_000
+    var retryInMills : UInt16 = 30_000
     var lastMessageId: Option<String> = Option.None
     var defaultMessageHandler = {message: Message=>}
     let handlers = HashMap<String, (Message)->Unit>()
@@ -59,16 +59,20 @@ public class EventSource {
                     connect(this.lastMessageId)
                 } catch (ex: Exception) {
                     ex.printStackTrace()
-                    sleep(retryInMills * Duration.millisecond)
+                    sleep(Int64(retryInMills) * Duration.millisecond)
                 }
             }
         }
     }
 
     private func connect(lastMessageId: Option<String>) {
-        let nextLine = UInt8(b'\n')
-        let endpoint: String;
         let headers = HttpHeaders();
+        headers.add("Accept", "text/event-stream")
+        if (lastMessageId.isSome()) {
+            headers.add("Last-Event-ID", lastMessageId.getOrThrow())
+        }
+
+        let endpoint: String;
         if (tag.isNone()) {
             endpoint = url;
         } else {
@@ -77,9 +81,6 @@ public class EventSource {
             } else {
                 endpoint = url + "?sse-tag=" + tag.getOrThrow();
             }
-            if (lastMessageId.isSome()) {
-                headers.add("Last-Event-ID", lastMessageId.getOrThrow())
-            }
         }
         let req = HttpRequestBuilder()
             .url(endpoint)
@@ -87,9 +88,15 @@ public class EventSource {
             .get()
             .build();
         let rsp = client.send(req)
-        let stream = rsp.body
+        let isEventStream = rsp.headers.iterator()
+            .any({head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0) == "text/event-stream"})
+        if (!isEventStream) {
+            throw Exception("服务端响应类型错误:Content-Type不正确!")
+        }
 
         // 处理响应流
+        let nextLine = UInt8(b'\n')
+        let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>();
         let buffer = Array<UInt8>(512, {_=>0})
         while (true) {
@@ -111,6 +118,11 @@ public class EventSource {
                 messageaHolder.append(byte)
                 let msg = messageaHolder.toArray();
                 let message = MessageBuilder.resolve(msg);
+
+                // 消息指定了重试时间则按指定值设置
+                if (message.retryInMills.isSome()) {
+                    this.retryInMills = message.retryInMills.getOrThrow()
+                }
                 
                 // 调用消息处理函数
                 try {

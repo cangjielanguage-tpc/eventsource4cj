@@ -85,6 +85,28 @@ public struct Message {
         }
     }
 
+    public prop dataLines: ArrayList<String> {
+        get() {
+            return this.dataList;
+        }
+    }
+
+    public prop data: Option<String> {
+        get() {
+            if (this.dataList.isEmpty()) {
+                return Option.None
+            } else {
+                return this.dataList[0]
+            }
+        }
+    }
+
+    public prop retryInMills: Option<UInt16> {
+        get() {
+            return this.retry
+        }
+    }
+
     public func toMessageString(): String {
         let body = StringBuilder()
 
@@ -121,9 +143,6 @@ public struct Message {
             body.append(data)
             body.append(NEXT_DATA_LINE)
         }
-
-        // StringBUilder无法链式操作
-        // String没有substring方法？？？
 
         return body.toString() + NEXT_DATA_LINE
     }
@@ -235,7 +254,6 @@ public class MessageBuilder {
     }
 
     static func getValue(messageLine: String): String {
-        let message = Regex("[\n\r]+$").matcher(messageLine).replaceAll("");
-        return message.trimAsciiRight().split(Message.FIELD_MARK_COLON, 2)[1];
+        return messageLine.split(Message.FIELD_MARK_COLON, 2)[1];
     }
 }
