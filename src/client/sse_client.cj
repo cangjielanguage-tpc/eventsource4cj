@@ -21,7 +21,7 @@ public class EventSource {
     let url: String
     var retryInMills : UInt16 = 30_000
     var lastMessageId: Option<String> = Option.None
-    var defaultMessageHandler = {message: Message=>}
+    var defaultMessageHandler = {_: Message=>}
     let handlers = HashMap<String, (Message)->Unit>()
 
     public init(url: String) {

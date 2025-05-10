@@ -71,7 +71,6 @@ public class SseServer {
             emitter.register(broker)
             let checked = clientConnectedHandler(broker)
             if (!checked) {
-                //TODO 取消注册并提示
                 throw Exception("服务端处理连接事件失败!")
             }
             broker.serve()
@@ -96,14 +95,12 @@ public class SseEmitter {
     }
 
     public func sendAll(message: Message) {
-        //TODO 优化批量发送
         for ((k, v) in brokerMap) {
             v.send(message)
         }
     }
 
     public func send(message: Message, brokerFilter: (SseEmitterBroker) -> Bool) {
-        //TODO 优化批量发送
         for ((k, v) in brokerMap) {
             if (brokerFilter(v)) {
                 v.send(message)
@@ -175,7 +172,6 @@ public class SseEmitterBroker {
 
     var response: Option<HttpResponseWriter> = Option.None
 
-    //TODO 优化队列空间、消息积压
     var queue = ArrayBlockingQueue(95536, Array<String>())
 
     public init(endpoint: String, context: HttpContext) {
@@ -200,7 +196,6 @@ public class SseEmitterBroker {
         this.response = Option.Some(HttpResponseWriter(this.context))
 
         // 开始发送事件
-        //TODO 优化发送性能
         this.context.responseBuilder
             .header("Transfer-encoding", "chunked")
             .header("Content-Type", "text/event-stream")
