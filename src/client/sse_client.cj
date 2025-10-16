@@ -19,16 +19,31 @@ import eventsource4cj.model.*
 public class EventSource {
     let client: Client
     let url: String
+    let bufferSize : Int64;
+    let handlers = HashMap<String, (Message)->Unit>()
     var retryInMills : UInt16 = 30_000
     var lastMessageId: Option<String> = Option.None
     var defaultMessageHandler = {_: Message=>}
-    let handlers = HashMap<String, (Message)->Unit>()
+    var exceptionHandler = {e: Exception,_: Array<UInt8> => e.printStackTrace()}
 
     public init(url: String) {
         let client = ClientBuilder().readTimeout(365 * 100 * Duration.day).build();
         this.client = client
         this.url = url
+        this.bufferSize = 1024 * 8;
     }
+
+    public init(url: String, bufferSize : Int64) {
+        let client = ClientBuilder().readTimeout(365 * 100 * Duration.day).build();
+        this.client = client
+        this.url = url
+        this.bufferSize = bufferSize;
+    }
+
+    public func setExceptionHandler(handler: (Exception, Array<UInt8>) -> Unit) {
+        exceptionHandler = handler
+    }
+
 
     public func onMessage(handler: (Message)->Unit) {
         this.defaultMessageHandler = handler
@@ -71,7 +86,7 @@ public class EventSource {
             .build();
         let rsp = client.send(req)
         let isEventStream = rsp.headers.iterator()
-            .any({head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0) == "text/event-stream"})
+            .any({head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0).getOrThrow().toAsciiLower() == "text/event-stream"})
         if (!isEventStream) {
             throw Exception("服务端响应类型错误:Content-Type不正确!")
         }
@@ -80,7 +95,7 @@ public class EventSource {
         let nextLine = UInt8(b'\n')
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>();
-        let buffer = Array<UInt8>(512, {_=>0})
+        let buffer = Array<UInt8>(bufferSize, {_=>0})
         while (true) {
             var len = stream.read(buffer);
             for (byte in buffer[0..len]) {
@@ -96,18 +111,18 @@ public class EventSource {
                     continue
                 }
 
-                // 已缓存了完整消息
-                messageaHolder.append(byte)
-                let msg = messageaHolder.toArray();
-                let message = MessageBuilder.resolve(msg);
-
-                // 消息指定了重试时间则按指定值设置
-                if (message.retryInMills.isSome()) {
-                    this.retryInMills = message.retryInMills.getOrThrow()
-                }
-                
-                // 调用消息处理函数
                 try {
+                    // 已缓存了完整消息
+                    messageaHolder.append(byte)
+                    let msg = messageaHolder.toArray();
+                    let message = MessageBuilder.resolve(msg);
+
+                    // 消息指定了重试时间则按指定值设置
+                    if (message.retryInMills.isSome()) {
+                        this.retryInMills = message.retryInMills.getOrThrow()
+                    }
+
+                    // 调用消息处理函数
                     if (message.eventType.isNone()) {
                         this.defaultMessageHandler(message)
                     } else {
@@ -124,7 +139,7 @@ public class EventSource {
                         this.lastMessageId = message.msgId
                     }
                 } catch(e: Exception) {
-                    e.printStackTrace();
+                    exceptionHandler(e, buffer);
                 } finally {
                     messageaHolder.clear()
                 }

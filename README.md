@@ -177,9 +177,8 @@ let eventsource= Eventsource("http://127.0.0.1:8080/bus");
 eventsource.onMessage({msg=>println("默认处理消息：${msg.toMessageString()}")})
 eventsource.onEvent("test-event", {msg=>println("处理消息：${msg.toMessageString()}")})
 
-// 开始订阅消息
+// 开始订阅消息（异步操作）
 let future = eventsource.subscribe()
-future.get()
 ```
 
 使用浏览器测试-客户端1订阅消息：
