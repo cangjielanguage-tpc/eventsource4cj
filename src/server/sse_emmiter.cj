@@ -81,6 +81,8 @@ public class SseServer {
 }
 
 public class SseEmitter {
+    private static let REG_ENDPOINT_ID = Regex("[/]{2,}");
+
     private static let lock = ReentrantMutex()
 
     private static let emitterMap = ConcurrentHashMap<String, SseEmitter>(32)
@@ -90,7 +92,7 @@ public class SseEmitter {
     private let brokerMap = ConcurrentHashMap<String, SseEmitterBroker>(32)
 
     private init(endpoint: String) {
-        let key = getKey(endpoint)
+        let key = getEndpointId(endpoint)
         this.endpoint = key
     }
 
@@ -109,7 +111,7 @@ public class SseEmitter {
     }
 
     public static func getEmitter(endpoint: String): Option<SseEmitter> {
-        let key = getKey(endpoint)
+        let key = getEndpointId(endpoint)
         return emitterMap.get(key)
     }
 
@@ -126,7 +128,7 @@ public class SseEmitter {
     }
 
     protected static func createIfAbsent(endpoint: String): SseEmitter {
-        let key = getKey(endpoint)
+        let key = getEndpointId(endpoint)
 
         if (emitterMap.contains(key)) {
             return emitterMap.get(key).getOrThrow();
@@ -146,20 +148,20 @@ public class SseEmitter {
     }
 
     protected func register(emitter: SseEmitterBroker) {
-        let key = getKey(emitter.endpoint)
+        let key = getEndpointId(emitter.endpoint)
         emitterMap.get(key).getOrThrow().brokerMap.put(emitter.sid, emitter)
     }
 
     protected static func deregister(emitter: SseEmitterBroker) {
-        let key = getKey(emitter.endpoint)
+        let key = getEndpointId(emitter.endpoint)
         let value = emitterMap.get(key)
         if (value.isSome()) {
             value.getOrThrow().brokerMap.remove(emitter.sid)
         }
     }
 
-    private static func getKey(endpoint: String): String {
-        return Regex("[/]{2,}").matcher("/" + endpoint).replace("/");
+    private static func getEndpointId(endpoint: String): String {
+        return REG_ENDPOINT_ID.matcher("/" + endpoint).replace("/");
     }
 }
 
