@@ -92,8 +92,8 @@ public class SseEmitter {
     private let brokerMap = ConcurrentHashMap<String, SseEmitterBroker>(32)
 
     private init(endpoint: String) {
-        let key = getEndpointId(endpoint)
-        this.endpoint = key
+        let endpointId = getEndpointId(endpoint)
+        this.endpoint = endpointId
     }
 
     public func sendAll(message: Message) {
@@ -111,8 +111,8 @@ public class SseEmitter {
     }
 
     public static func getEmitter(endpoint: String): Option<SseEmitter> {
-        let key = getEndpointId(endpoint)
-        return emitterMap.get(key)
+        let endpointId = getEndpointId(endpoint)
+        return emitterMap.get(endpointId)
     }
 
     public static func defaultBrokerFilterByRequestParameterValue(parameterName: String, parameterValue: String): (SseEmitterBroker) -> Bool {
@@ -128,19 +128,19 @@ public class SseEmitter {
     }
 
     protected static func createIfAbsent(endpoint: String): SseEmitter {
-        let key = getEndpointId(endpoint)
+        let endpointId = getEndpointId(endpoint)
 
-        if (emitterMap.contains(key)) {
-            return emitterMap.get(key).getOrThrow();
+        if (emitterMap.contains(endpointId)) {
+            return emitterMap.get(endpointId).getOrThrow();
         } else {
             lock.lock()
             try {
-                if (!emitterMap.contains(key)) {
+                if (!emitterMap.contains(endpointId)) {
                     let em = SseEmitter(endpoint);
-                    emitterMap.put(key, em);
+                    emitterMap.put(endpointId, em);
                 }
                 
-                return emitterMap.get(key).getOrThrow();
+                return emitterMap.get(endpointId).getOrThrow();
             } finally {
                 lock.unlock()
             }
@@ -148,13 +148,13 @@ public class SseEmitter {
     }
 
     protected func register(emitter: SseEmitterBroker) {
-        let key = getEndpointId(emitter.endpoint)
-        emitterMap.get(key).getOrThrow().brokerMap.put(emitter.sid, emitter)
+        let endpointId = getEndpointId(emitter.endpoint)
+        emitterMap.get(endpointId).getOrThrow().brokerMap.put(emitter.sid, emitter)
     }
 
     protected static func deregister(emitter: SseEmitterBroker) {
-        let key = getEndpointId(emitter.endpoint)
-        let value = emitterMap.get(key)
+        let endpointId = getEndpointId(emitter.endpoint)
+        let value = emitterMap.get(endpointId)
         if (value.isSome()) {
             value.getOrThrow().brokerMap.remove(emitter.sid)
         }
