@@ -85,13 +85,6 @@ func checkAndInit(broker: SseEmitterBroker): Bool {
 
     // 模拟权限校验等检查
     let token = requestContext.request.headers.get("token");
-    if (token.isEmpty()) {
-        let tokenInForm = requestContext.request.form.get("token")
-        let tk = tokenInForm.getOrThrow({=>Exception("用户未登录！！！")})
-        if (tk.size < 1) {
-            return false;
-        }
-    }
 
     // 业务处理。例如记录已连接请求，然后在相关业务中调用发送方法
     clients.append(broker);
