@@ -34,17 +34,23 @@ main(): Int64 {
 
     // 启动客户端
     let eventsource1 = EventSource("http://127.0.0.1:8080/bus?token=c1-89uy93r");
+    eventsource1.setExceptionHandler({ex, buffer =>
+        println("[客户端1]-接收消息错误：${ex.message}");
+        println("[客户端1]-异常数据：${buffer}");
+    })
     let eventsource2 = EventSource("http://127.0.0.1:8080/bus?token=c2-394j590&sse-tag=GA");
 
     // 注册事件处理函数
-    eventsource1.onMessage({msg=>println("客户端1-默认处理消息----------------->");println(msg.toMessageString())})
-    eventsource1.onEvent("test-event", {msg=>println("客户端1-处理消息----------------->");println(msg.toMessageString())})
-    eventsource2.onMessage({msg=>println("客户端2-默认处理消息=========>");println(msg.toMessageString())})
-    eventsource2.onEvent("test-event", {msg=>println("客户端2-处理消息=========>");println(msg.toMessageString())})
+    eventsource1.onMessage({msg=>println("[客户端1]-默认处理消息----------------->");println("[客户端1]-" +msg.toMessageString())})
+    eventsource1.onEvent("test-event", {msg=>println("[客户端1]-处理消息----------------->");println("[客户端1]-" +msg.toMessageString())})
+    eventsource2.onMessage({msg=>println("[客户端2]-默认处理消息=========>");println("[客户端2]-" +msg.toMessageString())})
+    eventsource2.onEvent("test-event", {msg=>println("[客户端2]-处理消息=========>");println("[客户端2]-" + msg.toMessageString())})
 
     // 开始订阅消息
     let future = eventsource1.subscribe()
     eventsource2.subscribe()
+
+    // 阻塞主线程以便观察效果
     future.get()
 
     return 0
@@ -108,13 +114,13 @@ func doBusiness(): Unit {
                 .data("数据行2-${DateTime.nowUTC().toString()}")
                 .data("数据行3-${DateTime.nowUTC().toString()}")
                 .build();
-            println("add message-------------${message.toMessageString()}\n")
+            println("向端点上所有连接发送消息->${message.toMessageString()}\n")
             broker.send(message)
         })
 
         // 按请求参数过滤后发送
         let emitter = SseEmitter.getEmitter("/bus").getOrThrow();
-        let message = MessageBuilder().data("将消息发送给所有请求参数sse-tag=GA的客户端").build();
+        let message = MessageBuilder().data("给所有请求参数sse-tag=GA客户端的消息-${DateTime.nowUTC().toString()}").build();
         emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse-tag", "GA"))
     })
 }
