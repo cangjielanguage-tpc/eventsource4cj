@@ -1,34 +1,29 @@
 /**
 Copyright (c) 2025 hashli
 eventsource4cj is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2. 
+You can use this software according to the terms and conditions of the Mulan PSL v2.
 You may obtain a copy of Mulan PSL v2 at:
-        http://license.coscl.org.cn/MulanPSL2 
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.  
+        http://license.coscl.org.cn/MulanPSL2
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
-*/
+ */
 package eventsource4cj.server
 
 import eventsource4cj.model.*
-import net.http.*
-import std.collection.*
 import std.collection.concurrent.*
 import std.random.*
 import std.regex.*
 import std.sync.*
 import std.time.*
-import std.unicode.UnicodeExtension
-
+import std.unicode.*
+import stdx.net.http.*
 
 public class SseServer {
     let server: Server
     var future: Option<Future<Unit>>
 
     public init(address: String, port: UInt16) {
-        this.server = ServerBuilder()
-            .addr(address)
-            .port(port)
-            .build();
+        this.server = ServerBuilder().addr(address).port(port).build()
         this.future = Option.None
     }
 
@@ -41,7 +36,7 @@ public class SseServer {
         return this.server
     }
 
-    public func serveForever() {
+    public func serveForever(): Unit {
         let future = spawn {
             server.serve()
         }
@@ -49,41 +44,43 @@ public class SseServer {
         future.get()
     }
 
-    public func terminate() {
+    public func terminate(): Unit {
         try {
-            if (future.isSome()) {
-                future.getOrThrow().cancel()
-            }
+            future?.cancel()
         } finally {
             server.closeGracefully()
         }
     }
 
     public func publish(endpoint: String): SseEmitter {
-        return publish(endpoint, {_=>true})
+        return publish(endpoint, {_ => true})
     }
 
-    public func publish(endpoint: String, clientConnectedHandler: (SseEmitterBroker)->Bool): SseEmitter {
+    public func publish(endpoint: String, clientConnectedHandler: (SseEmitterBroker) -> Bool): SseEmitter {
         let emitter = SseEmitter.createIfAbsent(endpoint)
 
-        server.distributor.register(endpoint, {context =>
-            let broker = SseEmitterBroker(endpoint, context)
-            emitter.register(broker)
-            let checked = clientConnectedHandler(broker)
-            if (!checked) {
-                throw Exception("服务端处理连接事件失败!")
+        server.distributor.register(
+            endpoint,
+            {
+                context =>
+                    let broker = SseEmitterBroker(endpoint, context)
+                    emitter.register(broker)
+                    let checked = clientConnectedHandler(broker)
+                    if (!checked) {
+                        throw Exception("服务端处理连接事件失败!")
+                    }
+                    broker.serve()
             }
-            broker.serve()
-        })
+        )
 
-        return emitter;
+        return emitter
     }
 }
 
 public class SseEmitter {
-    private static let REG_ENDPOINT_ID = Regex("[/]{2,}");
+    private static let REG_ENDPOINT_ID = Regex("[/]{2,}")
 
-    private static let lock = ReentrantMutex()
+    private static let lock = Mutex()
 
     private static let emitterMap = ConcurrentHashMap<String, SseEmitter>(32)
 
@@ -96,13 +93,13 @@ public class SseEmitter {
         this.endpoint = endpointId
     }
 
-    public func sendAll(message: Message) {
+    public func sendAll(message: Message): Unit {
         for ((k, v) in brokerMap) {
             v.send(message)
         }
     }
 
-    public func send(message: Message, brokerFilter: (SseEmitterBroker) -> Bool) {
+    public func send(message: Message, brokerFilter: (SseEmitterBroker) -> Bool): Unit {
         for ((k, v) in brokerMap) {
             if (brokerFilter(v)) {
                 v.send(message)
@@ -116,14 +113,15 @@ public class SseEmitter {
     }
 
     public static func defaultBrokerFilterByRequestParameterValue(parameterName: String, parameterValue: String): (SseEmitterBroker) -> Bool {
-        return {broker: SseEmitterBroker=>
-            let val = broker.httpContext.request.form.get(parameterName);
-            if (val.isNone()) {
-                return false;
-            } else {
-                let pv = val.getOrDefault({=>""});
-                return pv.trim() == parameterValue;
-            }
+        return {
+            broker: SseEmitterBroker =>
+                let val = broker.httpContext.request.form.get(parameterName)
+                if (val.isNone()) {
+                    return false
+                } else {
+                    let pv = val.getOrDefault({=> ""})
+                    return pv.trim() == parameterValue
+                }
         }
     }
 
@@ -131,25 +129,22 @@ public class SseEmitter {
         let endpointId = getEndpointId(endpoint)
 
         if (emitterMap.contains(endpointId)) {
-            return emitterMap.get(endpointId).getOrThrow();
+            return emitterMap.get(endpointId).getOrThrow()
         } else {
-            lock.lock()
-            try {
+            synchronized(lock) {
                 if (!emitterMap.contains(endpointId)) {
-                    let em = SseEmitter(endpoint);
-                    emitterMap.put(endpointId, em);
+                    let em = SseEmitter(endpoint)
+                    emitterMap.add(endpointId, em)
                 }
-                
-                return emitterMap.get(endpointId).getOrThrow();
-            } finally {
-                lock.unlock()
+
+                return emitterMap.get(endpointId).getOrThrow()
             }
         }
     }
 
     protected func register(emitter: SseEmitterBroker) {
         let endpointId = getEndpointId(emitter.endpoint)
-        emitterMap.get(endpointId).getOrThrow().brokerMap.put(emitter.sid, emitter)
+        emitterMap.get(endpointId).getOrThrow().brokerMap.add(emitter.sid, emitter)
     }
 
     protected static func deregister(emitter: SseEmitterBroker) {
@@ -161,7 +156,7 @@ public class SseEmitter {
     }
 
     private static func getEndpointId(endpoint: String): String {
-        return REG_ENDPOINT_ID.matcher("/" + endpoint).replace("/");
+        return REG_ENDPOINT_ID.replace("/" + endpoint, "/")
     }
 }
 
@@ -174,7 +169,7 @@ public class SseEmitterBroker {
 
     var response: Option<HttpResponseWriter> = Option.None
 
-    var queue = ArrayBlockingQueue(95536, Array<String>())
+    var queue = ArrayBlockingQueue<String>(95536)
 
     public init(endpoint: String, context: HttpContext) {
         this.sid = "${DateTime.nowUTC().nanosecond}.${Random().nextUInt16()}"
@@ -198,13 +193,15 @@ public class SseEmitterBroker {
         this.response = Option.Some(HttpResponseWriter(this.context))
 
         // 开始发送事件
-        this.context.responseBuilder
+        this
+            .context
+            .responseBuilder
             .header("Transfer-encoding", "chunked")
             .header("Content-Type", "text/event-stream")
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
         while (true) {
-            let msg = queue.dequeue();
+            let msg = queue.remove()
             try {
                 response.getOrThrow().write(msg.toArray())
             } catch (ex: Exception) {
@@ -215,8 +212,8 @@ public class SseEmitterBroker {
         }
     }
 
-    public func send(message: Message) {
-        let msg = message.toMessageString();
-        queue.enqueue(msg)
+    public func send(message: Message): Unit {
+        let msg = message.toMessageString()
+        queue.add(msg)
     }
 }

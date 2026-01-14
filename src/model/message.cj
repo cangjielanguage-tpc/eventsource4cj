@@ -1,19 +1,17 @@
 /**
 Copyright (c) 2025 hashli
 eventsource4cj is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2. 
+You can use this software according to the terms and conditions of the Mulan PSL v2.
 You may obtain a copy of Mulan PSL v2 at:
-        http://license.coscl.org.cn/MulanPSL2 
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.  
+        http://license.coscl.org.cn/MulanPSL2
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
-*/
+ */
 package eventsource4cj.model
 
 import std.collection.ArrayList
-import std.log.*
 import std.math.numeric.*
-import std.io.*
-import std.regex.*
+import stdx.log.*
 
 public struct Message {
     static let NEXT_DATA_LINE = '\n'
@@ -29,36 +27,37 @@ public struct Message {
     static let FIELD_MARK_COLON = ":"
 
     /*
-    * 事件类型。可选。自定义的任意值    
-    */
+     * 事件类型。可选。自定义的任意值
+     */
     let event: Option<String>
 
     /*
-    * 事件id。可选。可用于重连时定位上次消息位置
-    */
+     * 事件id。可选。可用于重连时定位上次消息位置
+     */
     let id: Option<String>
 
     /*
-    * 重试时间（毫秒）。可选
-    */
+     * 重试时间（毫秒）。可选
+     */
     let retry: Option<UInt16>
 
     /*
-    * 注释。可选
-    */
+     * 注释。可选
+     */
     let comment: Option<String>
 
     /*
-    * 数据。
-    */
+     * 数据。
+     */
     let dataList: ArrayList<String>
 
     /**
-    * 拓展属性
-    */
+     * 拓展属性
+     */
     let ext = MessageExtend()
 
-    protected init(event: Option<String>, id: Option<String>, retry: Option<UInt16>, comment: Option<String>, dataList: ArrayList<String>, tag : Option<String>) {
+    protected init(event: Option<String>, id: Option<String>, retry: Option<UInt16>, comment: Option<String>,
+        dataList: ArrayList<String>, tag: Option<String>) {
         this.event = event
         this.id = id
         this.retry = retry
@@ -75,19 +74,19 @@ public struct Message {
 
     public prop eventType: Option<String> {
         get() {
-            return this.event;
+            return this.event
         }
     }
 
     public prop msgId: Option<String> {
         get() {
-            return this.id;
+            return this.id
         }
     }
 
     public prop dataLines: ArrayList<String> {
         get() {
-            return this.dataList;
+            return this.dataList
         }
     }
 
@@ -116,19 +115,19 @@ public struct Message {
             body.append(this.comment.getOrThrow())
             body.append(NEXT_DATA_LINE)
         }
-        
+
         // 处理消息体
         if (this.event.isSome()) {
             body.append(FIELD_LABEL_EVENT)
             body.append(FIELD_MARK_COLON)
             body.append(this.event.getOrThrow())
-            body.append(NEXT_DATA_LINE) 
+            body.append(NEXT_DATA_LINE)
         }
         if (this.id.isSome()) {
             body.append(FIELD_LABEL_ID)
             body.append(FIELD_MARK_COLON)
             body.append(this.id.getOrThrow())
-            body.append(NEXT_DATA_LINE) 
+            body.append(NEXT_DATA_LINE)
         }
         if (this.retry.isSome()) {
             body.append(FIELD_LABEL_RETRY)
@@ -149,7 +148,7 @@ public struct Message {
 }
 
 public class MessageExtend {
-    var tag : Option<String>
+    var tag: Option<String>
 
     public init() {
         this.tag = Option.None
@@ -163,7 +162,7 @@ public class MessageExtend {
 }
 
 public class MessageBuilder {
-    static let log: SimpleLogger = SimpleLogger()
+    static let log: Logger = getGlobalLogger()
 
     private var _tag: Option<String>
 
@@ -217,7 +216,7 @@ public class MessageBuilder {
     }
 
     public func data(data: String): MessageBuilder {
-        this._dataList.append(data)
+        this._dataList.add(data)
 
         return this
     }
@@ -226,34 +225,33 @@ public class MessageBuilder {
         return Message(_event, _id, _retry, _comment, _dataList, _tag)
     }
 
-    
     public static func resolve(messageBody: Array<UInt8>): Message {
-        let mb = MessageBuilder();
+        let mb = MessageBuilder()
 
-        String.fromUtf8(messageBody).lines().forEach({line => 
+        for (line in String.fromUtf8(messageBody).lines()) {
             if (line.startsWith(Message.FIELD_MARK_COLON)) {
-                mb.comment(getValue(line));
+                mb.comment(getValue(line))
             } else if (line.startsWith(Message.FIELD_LABEL_EVENT)) {
-                mb.event(getValue(line));
+                mb.event(getValue(line))
             } else if (line.startsWith(Message.FIELD_LABEL_ID)) {
-                mb.id(getValue(line));
+                mb.id(getValue(line))
             } else if (line.startsWith(Message.FIELD_LABEL_RETRY)) {
-                let retryValue = getValue(line);
+                let retryValue = getValue(line)
                 if (retryValue.size > 0) {
-                    mb.retry(Decimal(retryValue).toUInt16());
+                    mb.retry(Decimal.parse(retryValue).toUInt16())
                 }
             } else if (line.startsWith(Message.FIELD_LABEL_DATA)) {
-                mb.data(getValue(line));
+                mb.data(getValue(line))
             } else if (line == "") {
             } else {
-                log.warn("未识别的数据行:${line}");
+                log.warn("未识别的数据行:${line}")
             }
-        })
+        }
 
-        return mb.build();
+        return mb.build()
     }
 
     static func getValue(messageLine: String): String {
-        return messageLine.split(Message.FIELD_MARK_COLON, 2)[1];
+        return messageLine.split(Message.FIELD_MARK_COLON, 2)[1]
     }
 }

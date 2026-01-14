@@ -4,7 +4,7 @@
 
 <p align="center">
 <img alt="" src="https://img.shields.io/badge/release-v0.0.1-brightgreen" style="display: inline-block;" />
-<img alt="" src="https://img.shields.io/badge/cjc-v0.53.13-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/cjc-v1.0.4-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-0.0%25-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/domain-HOS/Cloud-brightgreen" style="display: inline-block;" />
 </p>
@@ -171,7 +171,7 @@ emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse
 
 ```cangjie
 // 创建消息源
-let eventsource= Eventsource("http://127.0.0.1:8080/bus");
+let eventsource= EventSource("http://127.0.0.1:8080/bus");
 
 // 设置消息处理函数
 eventsource.onMessage({msg=>println("默认处理消息：${msg.toMessageString()}")})
@@ -202,7 +202,7 @@ evtsource.addEventListener('test-event', function(ctx) {
 ## 约束与限制
 在下述版本验证通过：
 
-    Cangjie Version: 0.53.13
+    Cangjie Version: 1.0.4
 
 ## 开源协议
 [木兰宽松许可证, 第2版](http://license.coscl.org.cn/MulanPSL2)
