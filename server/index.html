@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenHarmony EventSource 示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #events {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        .event-item {
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: white;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenHarmony EventSource 示例</h1>
+    <p>此页面演示了 Server-Sent Events (SSE) 功能。</p>
+    
+    <div>
+        <button id="connectBtn">连接到 SSE 服务</button>
+        <button id="disconnectBtn">断开连接</button>
+    </div>
+    
+    <div id="status">状态: 未连接</div>
+    
+    <h3>接收的事件:</h3>
+    <div id="events"></div>
+
+    <script>
+        let eventSource = null;
+        
+        document.getElementById('connectBtn').addEventListener('click', function() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            // 连接到 SSE 服务
+            eventSource = new EventSource('http://127.0.0.1:9000/sse/range/10/100');
+            
+            document.getElementById('status').textContent = '状态: 已连接';
+
+            let handler = function(event) {
+                const timeData = event.data;
+                const eventsDiv = document.getElementById('events');
+
+                const eventItem = document.createElement('div');
+                eventItem.className = 'event-item';
+                eventItem.textContent = `时间更新: ${timeData} (${new Date().toLocaleTimeString()})`;
+
+                eventsDiv.appendChild(eventItem);
+
+                // 滚动到底部以显示最新消息
+                eventsDiv.scrollTop = eventsDiv.scrollHeight;
+            }
+            eventSource.addEventListener('server-time', handler);
+            eventSource.addEventListener('range', handler);
+
+            eventSource.onerror = function(event) {
+                console.error('SSE 连接错误:', event);
+                document.getElementById('status').textContent = '状态: 连接错误';
+                eventSource.close()
+            };
+        });
+        
+        document.getElementById('disconnectBtn').addEventListener('click', function() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                document.getElementById('status').textContent = '状态: 已断开';
+            }
+        });
+    </script>
+</body>
+</html>

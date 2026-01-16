@@ -1,0 +1,15 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Please describe the basic information.",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "ssehybrid": "file:../ssehybrid",
+    "@ohos/eventsource": "^2.0.3",
+    "@ohos/node-polyfill": "^1.0.1"
+  },
+  "devDependencies": {},
+  "dynamicDependencies": {}
+}

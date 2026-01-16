@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "ssehybrid",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}
