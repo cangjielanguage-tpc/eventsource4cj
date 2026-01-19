@@ -13,6 +13,6 @@ server/sse-server.js
 启动sse服务端: 
 ```bash
 cd server
-
+npm install
 node sse-server.js
 ```
