@@ -5,7 +5,7 @@ const { default: SseStream } = require('ssestream')
 
 const app = express()
 app.use(serveStatic(__dirname))
-app.get('/sse/range/:count/:interval', (req, res) => {
+app.get('/sse/range/:page/:count/:interval', (req, res) => {
     // console.log({
     //     method: req.method,
     //     url: req.url,
@@ -15,6 +15,7 @@ app.get('/sse/range/:count/:interval', (req, res) => {
     //     body: req.body
     // });
 
+    let page = Number(req.params.count)
     let count = Number(req.params.count)
     let interval = Number(req.params.interval)
 
@@ -30,7 +31,7 @@ app.get('/sse/range/:count/:interval', (req, res) => {
             res.end()
             return
         }
-        res.write(`event: range\ndata: ${count}\n\n`)
+        res.write(`event: range\ndata: ${count}\n\n`.repeat(page))
         count--
     }, interval)
     res.on('close', () => {

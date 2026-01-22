@@ -1,4 +1,5 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { testCJ } from '../../Index';
 
 export default function localUnitTest() {
   describe('localUnitTest', () => {
@@ -28,6 +29,12 @@ export default function localUnitTest() {
       // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
       expect(a).assertContain(b);
       expect(a).assertEqual(a);
+    });
+    it('testcj', 0, () => {
+      // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case function.
+      let a = testCJ("asd")
+      // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
+      expect(a).assertEqual('asd');
     });
   });
 }
