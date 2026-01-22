@@ -3,7 +3,7 @@ import hilog from "@ohos.hilog";
 import { sse_cj } from "./sse_cj";
 import { sse_ets } from "./sse_ets";
 
-let SseUrl = "http://116.63.171.139:9000/sse/range/100/100/100"
+let SseUrl = "http://139.9.247.2:9000/sse/range/100/100/100"
 
 @Entry
 @Component
