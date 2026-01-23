@@ -1,0 +1,9 @@
+.git/
+.gitee/
+.vscode/
+.cache/
+.target/
+target/
+cjpm.lock
+test_temp
+ci_test
