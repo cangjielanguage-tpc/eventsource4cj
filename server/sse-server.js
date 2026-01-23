@@ -51,7 +51,8 @@ app.get('/sse/range/:page/:count/:interval/:datasize?', (req, res) => {
             res.end()
             return
         }
-        res.write(`event: range\ndata: ${count}${data}\n\n`.repeat(page))
+        const result = Array.from({ length: page }, (_, i) => `event: range\ndata: ${count}-${i + 1}${data}\n\n`).join('');
+        res.write(result)
         count--
     }, interval)
     res.on('close', () => {

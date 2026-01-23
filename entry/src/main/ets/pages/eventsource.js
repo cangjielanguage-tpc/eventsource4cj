@@ -165,7 +165,7 @@ function EventSource(url, eventSourceInitDict) {
                 return
             }
         })
-        var record=''
+        var datas = []
         crateHttp.on('dataReceive', (data) => {
             var buf
             var newBuffer
@@ -173,13 +173,14 @@ function EventSource(url, eventSourceInitDict) {
             var startingFieldLength = -1
             var newBufferSize = 0
             var bytesUsed = 0
-            hilog.error(0, 'mdebug0',
-                new String(buffer.Buffer.from(data)).replaceAll('\r', 'Ř').replaceAll('\n', 'Ň').replaceAll('\t', 'Ť')
-                    .replaceAll(' ', 'ø'))
-            if (data.byteLength < 2) {
+            datas.push(data)
+            const view = new Uint8Array(data)
+            if (view[view.length-1] !== 10) {
+                // 10 是 '\n' 的 ASCII 码
                 return
             }
-            var chunk = buffer.Buffer.from(data)
+            var chunk = Buffer.concat(datas)
+            datas = []
             if (!buf) {
                 buf = chunk
                 if (hasBom(buf)) {
@@ -304,7 +305,6 @@ function EventSource(url, eventSourceInitDict) {
 }
 
 export default EventSource
-
 util.inherits(EventSource, events.EventEmitter)
 EventSource.prototype.constructor = EventSource; // make stacktraces readable
 ['open', 'error', 'message'].forEach(function (method) {
@@ -453,4 +453,30 @@ function removeUnsafeHeaders(headers) {
         safe[key] = headers[key]
     }
     return safe
+}
+
+
+
+function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
+    // 1. 计算总长度
+    let totalLength = 0;
+    for (const buf of buffers) {
+        totalLength += buf.byteLength;
+    }
+
+    // 2. 创建目标 ArrayBuffer 和视图
+    const result = new ArrayBuffer(totalLength);
+    const resultView = new Uint8Array(result);
+
+    // 3. 依次复制每个缓冲区
+    let offset = 0;
+    for (const buf of buffers) {
+        if (buf.byteLength > 0) {
+            const sourceView = new Uint8Array(buf);
+            resultView.set(sourceView, offset);
+            offset += buf.byteLength;
+        }
+    }
+
+    return result;
 }
