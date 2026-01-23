@@ -7,6 +7,7 @@ import eventsource4cj.client.EventSource as CJEventSource
 import eventsource4cj.model.Message as CJMessage
 import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
+import ohos.hilog.Hilog
 
 public class EventSource <: SharedObject & JSInteropType<EventSource> {
     static init() {
@@ -122,10 +123,14 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
             try {
                 let future = clazz.subscribe()
                 let ret = future.get()
-                promise.resolve(ret.toJSValue(context))
+                context.postJSTask {
+                    promise.resolve(ret.toJSValue(context))
+                }
             } catch (e: Exception) {
-                promise.reject(context.string(e.toString()).toJSValue())
-                e.printStackTrace()
+                context.postJSTask {
+                    promise.reject(context.string(e.toString()).toJSValue())
+                }
+                Hilog.error(0, 'mdebug', getStackTrace(e))
             }
         }
         JSCurrentJSContext.unset()
@@ -156,6 +161,20 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
     }
 
     let cjEventSource: CJEventSource
+}
+
+func getStackTrace(thrown: ?Exception): String {
+    var res: String = ""
+    match (thrown) {
+        case None => return res
+        case Some(v) =>
+            res = "\n${v.toString()}\n"
+            var arr = v.getStackTrace()
+            for (line in arr) {
+                res += "      at ${line.declaringClass}.${line.methodName}(${line.fileName}:${line.lineNumber})\n"
+            }
+            return res
+    }
 }
 
 /**

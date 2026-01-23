@@ -32,4 +32,5 @@
   package-option = {}
 
 [dependencies]
-  eventsource4cj = {git="https://gitcode.com/Young242/eventsource4cj.git", branch="cjc1.0.4"}
+  #eventsource4cj = {git="https://gitcode.com/Young242/eventsource4cj.git", branch="cjc1.0.4"}
+  eventsource4cj = {path="../eventsource4cj"}

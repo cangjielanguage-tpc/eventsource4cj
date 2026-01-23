@@ -7,6 +7,7 @@ import eventsource4cj.client.EventSource as CJEventSource
 import eventsource4cj.model.Message as CJMessage
 import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
+import ohos.hilog.Hilog
 
 public class Message <: SharedObject & JSInteropType<Message> {
     static init() {
@@ -290,6 +291,7 @@ public class Message <: SharedObject & JSInteropType<Message> {
 }
 
 func buildMessage(context: JSContext, msg: CJMessage): JSValue {
+    //    Hilog.error(0,'mdebug',"1.1 ${msg.data}")
     let obj = context.object()
     obj.set("messageTag", msg.extention.messageTag, context)
     obj.set("eventType", msg.eventType, context)

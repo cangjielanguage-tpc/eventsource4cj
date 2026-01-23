@@ -165,22 +165,14 @@ function EventSource(url, eventSourceInitDict) {
                 return
             }
         })
-        var datas = []
+        var buf
+        var newBuffer
+        var startingPos = 0
+        var startingFieldLength = -1
+        var newBufferSize = 0
+        var bytesUsed = 0
         crateHttp.on('dataReceive', (data) => {
-            var buf
-            var newBuffer
-            var startingPos = 0
-            var startingFieldLength = -1
-            var newBufferSize = 0
-            var bytesUsed = 0
-            datas.push(data)
-            const view = new Uint8Array(data)
-            if (view[view.length-1] !== 10) {
-                // 10 是 '\n' 的 ASCII 码
-                return
-            }
-            var chunk = Buffer.concat(datas)
-            datas = []
+            var chunk = buffer.Buffer.from(data)
             if (!buf) {
                 buf = chunk
                 if (hasBom(buf)) {
@@ -453,30 +445,4 @@ function removeUnsafeHeaders(headers) {
         safe[key] = headers[key]
     }
     return safe
-}
-
-
-
-function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
-    // 1. 计算总长度
-    let totalLength = 0;
-    for (const buf of buffers) {
-        totalLength += buf.byteLength;
-    }
-
-    // 2. 创建目标 ArrayBuffer 和视图
-    const result = new ArrayBuffer(totalLength);
-    const resultView = new Uint8Array(result);
-
-    // 3. 依次复制每个缓冲区
-    let offset = 0;
-    for (const buf of buffers) {
-        if (buf.byteLength > 0) {
-            const sourceView = new Uint8Array(buf);
-            resultView.set(sourceView, offset);
-            offset += buf.byteLength;
-        }
-    }
-
-    return result;
 }

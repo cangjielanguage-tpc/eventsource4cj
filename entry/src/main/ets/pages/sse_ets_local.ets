@@ -1,4 +1,4 @@
-import EventSource from "@ohos/eventsource";
+import EventSource from "./eventsource";
 import hilog from "@ohos.hilog";
 import { systemDateTime } from "@kit.BasicServicesKit";
 
