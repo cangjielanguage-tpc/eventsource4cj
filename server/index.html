@@ -50,7 +50,8 @@
             }
             
             // 连接到 SSE 服务
-            eventSource = new EventSource('http://127.0.0.1:9000/sse/range/10/10/100');
+            const baseUrl = `${window.location.protocol}//${window.location.host}`;
+            eventSource = new EventSource(`${baseUrl}/sse/range/2/3/100`);
             
             document.getElementById('status').textContent = '状态: 已连接';
 
