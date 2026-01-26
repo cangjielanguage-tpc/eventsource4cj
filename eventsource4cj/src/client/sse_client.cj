@@ -36,20 +36,14 @@ public class EventSource {
             return socket
     }
     public init(url: String) {
-        let client = ClientBuilder()
-            .connector(TcpSocketConnector)
-            .readTimeout(365 * 100 * Duration.day)
-            .build()
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
         this.client = client
         this.url = url
         this.bufferSize = 1024 * 8
     }
 
     public init(url: String, bufferSize: Int64) {
-        let client = ClientBuilder()
-            .connector(TcpSocketConnector)
-            .readTimeout(365 * 100 * Duration.day)
-            .build()
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
         this.client = client
         this.url = url
         this.bufferSize = bufferSize
@@ -65,11 +59,7 @@ public class EventSource {
 
     public func onEvent(event: String, handler: (Message) -> Unit): Unit {
         let listener = {
-            message: Message => if (message
-                .eventType
-                .isSome() && event == message
-                .eventType
-                .getOrThrow()) {
+            message: Message => if (message.eventType.isSome() && event == message.eventType.getOrThrow()) {
                 handler(message)
             }
         }
@@ -100,27 +90,14 @@ public class EventSource {
         }
 
         let endpoint = url
-        let req = HttpRequestBuilder()
-            .url(endpoint)
-            .addHeaders(headers)
-            .get()
-            .build()
+        let req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
         let rsp = client.send(req)
-        let isEventStream = rsp
-            .headers
-            .iterator()
-            .any({
-                head => head[0].toAsciiLower() == "content-type" &&
-                    head[1]
-                    .iterator()
-                    .at(0)
-                    .getOrThrow()
-                    .toAsciiLower() == "text/event-stream"
-            })
+        let isEventStream = rsp.headers.iterator().any({
+            head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0).getOrThrow().toAsciiLower() ==
+                "text/event-stream"
+        })
         if (!isEventStream) {
-            let a = rsp
-                .headers
-                .iterator() |> map(
+            let a = rsp.headers.iterator() |> map(
                 {h: (String, Collection<String>) => "${h[0]}:${h[1] |> collectString(delimiter: ",")}"}) |>
                 collectString(delimiter: "\n")
             throw Exception("服务端响应类型错误:Content-Type不正确! ${rsp.toString()}")
@@ -136,14 +113,8 @@ public class EventSource {
             if (len == 0) {
                 return 0 // chuned流结束 连接关闭
             }
-            log(
-                "mdebug0:" +
-                    String
-                    .fromUtf8(buffer[0..len])
-                    .replace('\r', 'Ř')
-                    .replace('\n', 'Ň')
-                    .replace('\t', 'Ť')
-                    .replace(' ', 'ø'))
+//            log(
+//                "mdebug0:${String.fromUtf8(buffer[0..len]).replace('\r', 'Ř').replace('\n', 'Ň').replace('\t', 'Ť').replace(' ', 'ø')}")
             for (byte in buffer[0..len]) {
                 if (byte != nextLine) {
                     messageaHolder.add(byte)
@@ -164,26 +135,16 @@ public class EventSource {
                     let message = MessageBuilder.resolve(msg)
 
                     // 消息指定了重试时间则按指定值设置
-                    if (message
-                        .retryInMills
-                        .isSome()) {
-                        this.retryInMills = message
-                            .retryInMills
-                            .getOrThrow()
+                    if (message.retryInMills.isSome()) {
+                        this.retryInMills = message.retryInMills.getOrThrow()
                     }
 
                     // 调用消息处理函数
-                    if (message
-                        .eventType
-                        .isNone()) {
+                    if (message.eventType.isNone()) {
                         this.defaultMessageHandler(message)
                     } else {
-                        let event = message
-                            .eventType
-                            .getOrThrow()
-                        let handler = this
-                            .handlers
-                            .get(event)
+                        let event = message.eventType.getOrThrow()
+                        let handler = this.handlers.get(event)
                         if (handler.isNone()) {
                             this.defaultMessageHandler(message)
                         } else {
@@ -191,9 +152,7 @@ public class EventSource {
                         }
                     }
 
-                    if (message
-                        .msgId
-                        .isSome()) {
+                    if (message.msgId.isSome()) {
                         this.lastMessageId = message.msgId
                     }
                 } catch (e: Exception) {
