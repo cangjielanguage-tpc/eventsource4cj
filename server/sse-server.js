@@ -5,7 +5,7 @@ const { default: SseStream } = require('ssestream')
 
 const tinyData = ''
 const normalData =
-    '{"symbol":"AAPL","price":192.45,"change":-1.23,"changePercent":-0.63,"volume":1245678,"timestamp":"2026-01-23T10:45:02Z"}'
+    '{"choices": [{"delta": {"role": "assistant", "content": " newsSubscription.unsubscribe();\\n    res", "phase": "answer", "status": "typing"}}], "response_id": "c468cca7-521c-4a58-8e8c-5fb16d54d8a5", "usage": {"input_tokens": 27273, "output_tokens": 1829, "total_tokens": 29102, "output_tokens_details": {"reasoning_tokens": 197}}}'
 const largeData =
     `{"timestamp":"2026-01-23T14:25:30Z","region":"us-east-1","nodes":[{"nodeId":"web-01","status":"healthy","cpuUsage":42.7,"memoryUsage":68.3,"diskUsage":55.1,"latencyMs":48,"activeConnections":1243,"lastHeartbeat":"2026-01-23T14:25:29Z"},{"nodeId":"web-02","status":"degraded","cpuUsage":92.1,"memoryUsage":89.5,"diskUsage":70.2,"latencyMs":312,"activeConnections":2105,"lastHeartbeat":"2026-01-23T14:25:28Z","alerts":["high_cpu","high_latency"]},{"nodeId":"db-primary","status":"healthy","cpuUsage":35.0,"memoryUsage":76.8,"diskUsage":82.4,"latencyMs":5,"activeConnections":89,"lastHeartbeat":"2026-01-23T14:25:30Z"},{"nodeId":"cache-01","status":"unreachable","lastSeen":"2026-01-23T14:24:55Z","error":"connectiontimeout"}],"summary":{"totalNodes":4,"healthy":2,"degraded":1,"down":1}}`
 
