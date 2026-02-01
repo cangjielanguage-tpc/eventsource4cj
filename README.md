@@ -23,10 +23,6 @@
 
 - 提供客户端实现
 
-### 项目计划
-
-介绍开发和维护等关键里程碑
-
 ## 项目架构
 
 架构图文说明，包括模块说明、架构层次等详细说明，详见 [DESGIN](./doc/design.md)
@@ -61,10 +57,17 @@
 ### 编译构建
 
 修改cjpm.toml文件，添加本项目依赖：
+- 引入最新发布版本
 ```tmol
 [dependencies]
-  eventsource4cj = { git = "https://gitcode.com/Cangjie-SIG/eventsource4cj.git", branch = "main" }
+  eventsource4cj = { git = "https://gitcode.com/Cangjie-TPC/eventsource4cj.git", branch = "main" }
 ```
+- 引入指定版本
+```tmol
+[dependencies]
+  eventsource4cj = { git = "https://gitcode.com/Cangjie-TPC/eventsource4cj.git", tag = "v0.0.1" }
+```
+注意，自仓颉SDK1.0.0版本起，网络等模块已迁移至仓颉STDX模块，需要先安装配置该模块。参考相关说明[cangjie-stdx](https://gitcode.com/Cangjie/cangjie_stdx)、[cangjie-stdx-bin](https://gitcode.com/Cangjie/cangjie-stdx-bin)
 
 编译运行：
 ```shell
