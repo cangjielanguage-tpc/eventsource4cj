@@ -4,7 +4,7 @@
 
 <p align="center">
 <img alt="" src="https://img.shields.io/badge/release-v0.0.1-brightgreen" style="display: inline-block;" />
-<img alt="" src="https://img.shields.io/badge/cjc-v0.53.13-brightgreen" style="display: inline-block;" />
+<img alt="" src="https://img.shields.io/badge/cjc-v1.0.4-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/cjcov-0.0%25-brightgreen" style="display: inline-block;" />
 <img alt="" src="https://img.shields.io/badge/domain-HOS/Cloud-brightgreen" style="display: inline-block;" />
 </p>
@@ -22,10 +22,6 @@
 - 屏蔽规范实现与通信细节，让使用者专注于业务处理
 
 - 提供客户端实现
-
-### 项目计划
-
-介绍开发和维护等关键里程碑
 
 ## 项目架构
 
@@ -61,10 +57,17 @@
 ### 编译构建
 
 修改cjpm.toml文件，添加本项目依赖：
+- 引入最新发布版本
 ```tmol
 [dependencies]
-  eventsource4cj = { git = "https://gitcode.com/Cangjie-SIG/eventsource4cj.git", branch = "main" }
+  eventsource4cj = { git = "https://gitcode.com/Cangjie-TPC/eventsource4cj.git", branch = "main" }
 ```
+- 引入指定版本
+```tmol
+[dependencies]
+  eventsource4cj = { git = "https://gitcode.com/Cangjie-TPC/eventsource4cj.git", tag = "v0.0.1" }
+```
+注意，自仓颉SDK1.0.0版本起，网络等模块已迁移至仓颉STDX模块，需要先安装配置该模块。参考相关说明[cangjie-stdx](https://gitcode.com/Cangjie/cangjie_stdx)、[cangjie-stdx-bin](https://gitcode.com/Cangjie/cangjie-stdx-bin)
 
 编译运行：
 ```shell
@@ -171,7 +174,7 @@ emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse
 
 ```cangjie
 // 创建消息源
-let eventsource= Eventsource("http://127.0.0.1:8080/bus");
+let eventsource= EventSource("http://127.0.0.1:8080/bus");
 
 // 设置消息处理函数
 eventsource.onMessage({msg=>println("默认处理消息：${msg.toMessageString()}")})
@@ -202,7 +205,7 @@ evtsource.addEventListener('test-event', function(ctx) {
 ## 约束与限制
 在下述版本验证通过：
 
-    Cangjie Version: 0.53.13
+    Cangjie Version: 1.0.4
 
 ## 开源协议
 [木兰宽松许可证, 第2版](http://license.coscl.org.cn/MulanPSL2)

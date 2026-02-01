@@ -5,3 +5,8 @@
 .target/
 target/
 cjpm.lock
+test_temp
+ci_test
+log
+report
+log.txt
