@@ -24,59 +24,59 @@ let endpoint = "/bus"
 main(): Int64 {
     println("hello world")
 
-    // 启动服务端
+    // Start server
     spawn {
         serve()
     }
 
-    // 启动客户端
+    // Start client
     let eventsource1 = EventSource("http://127.0.0.1:8080/bus?token=c1-89uy93r")
     eventsource1.setExceptionHandler(
         {
             ex, buffer =>
-                println("[客户端1]-接收消息错误：${ex.message}")
-                println("[客户端1]-异常数据：${buffer}")
+                println("[Client 1] - Message receive error: ${ex.message}")
+                println("[Client 1] - Exception data: ${buffer}")
         }
     )
     let eventsource2 = EventSource("http://127.0.0.1:8080/bus?token=c2-394j590&sse-tag=GA")
 
-    // 注册事件处理函数
+    // Register event handler
     eventsource1.onMessage(
         {
             msg =>
-                println("[客户端1]-默认处理消息----------------->")
-                println("[客户端1]-" + msg.toMessageString())
+                println("[Client 1] - Default message handler ----------------->")
+                println("[Client 1] - " + msg.toMessageString())
         }
     )
     eventsource1.onEvent(
         "test-event",
         {
             msg =>
-                println("[客户端1]-处理消息----------------->")
-                println("[客户端1]-" + msg.toMessageString())
+                println("[Client 1] - Handle message ----------------->")
+                println("[Client 1] - " + msg.toMessageString())
         }
     )
     eventsource2.onMessage(
         {
             msg =>
-                println("[客户端2]-默认处理消息=========>")
-                println("[客户端2]-" + msg.toMessageString())
+                println("[Client 2] - Default message handler =========>")
+                println("[Client 2] - " + msg.toMessageString())
         }
     )
     eventsource2.onEvent(
         "test-event",
         {
             msg =>
-                println("[客户端2]-处理消息=========>")
-                println("[客户端2]-" + msg.toMessageString())
+                println("[Client 2] - Handle message =========>")
+                println("[Client 2] - " + msg.toMessageString())
         }
     )
 
-    // 开始订阅消息
+    // Start message subscription
     let future = eventsource1.subscribe()
     eventsource2.subscribe()
 
-    // 阻塞主线程10s以便观察效果
+    // Block main thread for 10s to observe results
     try {
         future.get(Duration.second * 10)
     } catch (_: TimeoutException) {
@@ -93,7 +93,7 @@ func serve(): Int64 {
 
     sseServer.getHttpServer().logger.level = LogLevel.DEBUG
 
-    // 添加一个示例页面，可以在浏览器访问"127.0.0.1:8080/hello"来测试消息订阅
+    // Add an example page, visit "127.0.0.1:8080/hello" in browser to test message subscription
     addExamplePage(sseServer.getHttpServer())
 
     sseServer.publish(endpoint, checkAndInit)
@@ -108,22 +108,22 @@ func serve(): Int64 {
 }
 
 /**
- * 连接检查与初始化
+ * Connection check and initialization
  */
 func checkAndInit(broker: SseEmitterBroker): Bool {
     let requestContext = broker.httpContext
 
-    // 模拟权限校验等检查
+    // Simulate permission check and other validations
     let token = requestContext.request.headers.get("token")
 
-    // 业务处理。例如记录已连接请求，然后在相关业务中调用发送方法
+    // Business processing. For example, record connected requests, then call send method in related business
     clients.add(broker)
 
     return true
 }
 
 /**
- * 模拟业务端异步发送消息
+ * Simulate business side asynchronously sending messages
  */
 func doBusiness(): Unit {
     Timer.repeat(
@@ -131,7 +131,7 @@ func doBusiness(): Unit {
         5 * Duration.second,
         {
             =>
-                // 遍历全部客户端发送消息
+                // Iterate all clients and send messages
                 clients.iterator().forEach(
                     {
                         broker =>
@@ -139,19 +139,19 @@ func doBusiness(): Unit {
                             let message = MessageBuilder()
                                 .event("test-event")
                                 .id("id-${index}-1")
-                                .data("数据行1-${DateTime.nowUTC().toString()}")
-                                .data("数据行2-${DateTime.nowUTC().toString()}")
-                                .data("数据行3-${DateTime.nowUTC().toString()}")
+                                .data("Data line 1-${DateTime.nowUTC().toString()}")
+                                .data("Data line 2-${DateTime.nowUTC().toString()}")
+                                .data("Data line 3-${DateTime.nowUTC().toString()}")
                                 .build()
-                            println("向端点上所有连接发送消息->${message.toMessageString()}\n")
+                            println("Send message to all connections on endpoint->${message.toMessageString()}\n")
                             broker.send(message)
                     }
                 )
 
-                // 按请求参数过滤后发送
+                // Filter by request parameter and send
                 let emitter = SseEmitter.getEmitter("/bus").getOrThrow()
                 let message = MessageBuilder()
-                    .data("给所有请求参数sse-tag=GA客户端的消息-${DateTime.nowUTC().toString()}")
+                    .data("Message to all clients with request parameter sse-tag=GA-${DateTime.nowUTC().toString()}")
                     .build()
                 emitter.send(message, SseEmitter.defaultBrokerFilterByRequestParameterValue("sse-tag", "GA"))
         }

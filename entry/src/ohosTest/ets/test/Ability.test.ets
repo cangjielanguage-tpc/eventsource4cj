@@ -41,25 +41,25 @@ export default function abilityTest() {
       let eventListener = (e: Record<"data", string>) => {
         simpleList.push(e.data);
       }
-      // 创建连接
+      // Create connection
       es = new EventSource(url)
 
-      // 开启监听
+      // Start listening
       es.addEventListener("server-time", eventListener);
       es.addEventListener("", eventListener);
       es.addEventListener(undefined, eventListener);
       es.addEventListener(null, eventListener);
       es.addEventListener('data', eventListener);
 
-      // 取消监听
+      // Cancel listening
       // es.removeEventListener("server-time", eventListener);
 
-      // 断开连接
+      // Disconnect
       // es.close();
 
-      // 错误监听
+      // Error listening
       es.onFailure((e: Record<"message", string>) => {
-        // 得到错误消息，对错误消息做处理
+        // Get error message and handle it
       })
 
       hilog.error(0, 'mdebug', simpleList.length.toString())

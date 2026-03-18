@@ -20,6 +20,7 @@ public class EventSource {
     let url: String
     let bufferSize: Int64
     let handlers = HashMap<String, (Message) -> Unit>()
+    let customHeaders = HashMap<String, String>()
     var retryInMills: UInt16 = 30_000
     var lastMessageId: Option<String> = Option.None
     var defaultMessageHandler = {_: Message =>}
@@ -31,7 +32,7 @@ public class EventSource {
             tcpSocket.noDelay = true
             var socket = ObseredSocket(tcpSocket)
             this.socket = socket
-            log("重置了socket")
+            log("Socket reset")
             socket.connect()
             return socket
     }
@@ -47,6 +48,24 @@ public class EventSource {
         this.client = client
         this.url = url
         this.bufferSize = bufferSize
+    }
+
+    public func setHeader(name: String, value: String): Unit {
+        this.customHeaders.add(name, value)
+    }
+
+    public func setHeaders(headers: HashMap<String, String>): Unit {
+        for ((name, value) in headers) {
+            this.customHeaders.add(name, value)
+        }
+    }
+
+    public func removeHeader(name: String): Unit {
+        this.customHeaders.remove(name)
+    }
+
+    public func clearHeaders(): Unit {
+        this.customHeaders.clear()
     }
 
     public func setExceptionHandler(handler: (Exception, Array<UInt8>) -> Unit): Unit {
@@ -88,6 +107,10 @@ public class EventSource {
         if (lastMessageId.isSome()) {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
+        // Add custom headers
+        for ((name, value) in this.customHeaders) {
+            headers.add(name, value)
+        }
 
         let endpoint = url
         let req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
@@ -100,10 +123,10 @@ public class EventSource {
             let a = rsp.headers.iterator() |> map(
                 {h: (String, Collection<String>) => "${h[0]}:${h[1] |> collectString(delimiter: ",")}"}) |>
                 collectString(delimiter: "\n")
-            throw Exception("服务端响应类型错误:Content-Type不正确! ${rsp.toString()}")
+            throw Exception("Server response type error: Content-Type is incorrect! ${rsp.toString()}")
         }
 
-        // 处理响应流
+        // Process response stream
         let nextLine = UInt8(b'\n')
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>()
@@ -111,7 +134,7 @@ public class EventSource {
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
-                return 0 // chuned流结束 连接关闭
+                return 0 // Chunked stream ended, connection closed
             }
 //            log(
 //                "mdebug0:${String.fromUtf8(buffer[0..len]).replace('\r', 'Ř').replace('\n', 'Ň').replace('\t', 'Ť').replace(' ', 'ø')}")
@@ -129,17 +152,17 @@ public class EventSource {
                 }
 
                 try {
-                    // 已缓存了完整消息
+                    // Complete message cached
                     messageaHolder.add(byte)
                     let msg = messageaHolder.toArray()
                     let message = MessageBuilder.resolve(msg)
 
-                    // 消息指定了重试时间则按指定值设置
+                    // Set retry time if specified in message
                     if (message.retryInMills.isSome()) {
                         this.retryInMills = message.retryInMills.getOrThrow()
                     }
 
-                    // 调用消息处理函数
+                    // Call message handler
                     if (message.eventType.isNone()) {
                         this.defaultMessageHandler(message)
                     } else {
@@ -203,10 +226,6 @@ public class ObseredSocket <: StreamingSocket {
         let len = socket.read(buffer)
         socket_string_read.append(
             "${String.fromUtf8(buffer[..len]).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
-        // for (b in buffer[0..len]) {
-        //     // print("${b}-${b.toString(radix: 16)}-${Rune(UInt32(b)).toString().replace("\n", "\\n")} ")
-        //     print("${Rune(UInt32(b)).toString().replace("\n", "\\n")} ")
-        // }
         return len
     }
     public func write(buffer: Array<UInt8>): Unit {
@@ -230,8 +249,7 @@ public class ObseredSocket <: StreamingSocket {
 
 var logid = 100
 
-func log(s: ToString): Unit {
-    Hilog.error(0, 'mdebug', "${s.toString()}")
+func log(s: ToString): Unit {    Hilog.warn(0, 'mdebug', "${s.toString()}")
     logid += 1
 }
 

@@ -24,6 +24,63 @@ function getData(datasize) {
 
 const app = express()
 app.use(serveStatic(__dirname))
+
+// SSE endpoint requiring custom headers validation
+app.get('/sse/secure/range/:page/:count/:interval/:datasize?', (req, res) => {
+    // Validate custom headers
+    const authToken = req.headers['x-auth-token']
+    const clientId = req.headers['x-client-id']
+    const apiKey = req.headers['x-api-key']
+
+    console.log('Secure SSE connection attempt:')
+    console.log('  X-Auth-Token:', authToken)
+    console.log('  X-Client-Id:', clientId)
+    console.log('  X-Api-Key:', apiKey)
+
+    // Simple validation example
+    if (!authToken || !clientId) {
+        console.log('  Authentication failed: missing required headers')
+        res.status(401).json({ error: 'Unauthorized: missing required headers (X-Auth-Token, X-Client-Id)' })
+        return
+    }
+
+    // Optional API Key validation
+    if (apiKey && apiKey !== 'valid-api-key-12345') {
+        console.log('  API Key validation failed')
+        res.status(403).json({ error: 'Forbidden: invalid API key' })
+        return
+    }
+
+    console.log('  Authentication successful')
+
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    // Include client ID in data to verify identity
+    const pusher = setInterval(() => {
+        if (count <= 0) {
+            clearInterval(pusher)
+            res.end()
+            return
+        }
+        const result = Array.from({ length: page }, (_, i) => `event: secure-range\ndata: ${count}-${i + 1}|client:${clientId}|token:${authToken.substring(0, 8)}...${data}\n\n`).join('');
+        res.write(result)
+        count--
+    }, interval)
+    res.on('close', () => {
+        console.log('Secure connection closed for client:', clientId)
+        clearInterval(pusher)
+    })
+})
+
 app.get('/sse/range/:page/:count/:interval/:datasize?', (req, res) => {
     // console.log({
     //     method: req.method,

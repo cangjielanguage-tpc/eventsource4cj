@@ -8,6 +8,7 @@ import eventsource4cj.model.Message as CJMessage
 import ohos.ark_interop.*
 import ohos.ark_interop_macro.*
 import ohos.hilog.Hilog
+import std.collection.HashMap
 
 public class EventSource <: SharedObject & JSInteropType<EventSource> {
     static init() {
@@ -18,6 +19,10 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 clazz.addMethod("setExceptionHandler", context.function(setExceptionHandler_ArkTS_Interop_Identifier))
                 clazz.addMethod("onMessage", context.function(onMessage_ArkTS_Interop_Identifier))
                 clazz.addMethod("onEvent", context.function(onEvent_ArkTS_Interop_Identifier))
+                clazz.addMethod("setHeader", context.function(setHeader_ArkTS_Interop_Identifier))
+                clazz.addMethod("setHeaders", context.function(setHeaders_ArkTS_Interop_Identifier))
+                clazz.addMethod("removeHeader", context.function(removeHeader_ArkTS_Interop_Identifier))
+                clazz.addMethod("clearHeaders", context.function(clearHeaders_ArkTS_Interop_Identifier))
                 return clazz
         }
     }
@@ -137,6 +142,83 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         return promise.toJSValue()
     }
 
+    public func setHeader(name: String, value: String): Unit {
+        cjEventSource.setHeader(name, value)
+    }
+    public static func setHeader_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let name = callInfo[0].toString()
+        let value = callInfo[1].toString()
+        let RET = clazz.setHeader(name, value)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func setHeaders(headers: HashMap<String, String>): Unit {
+        cjEventSource.setHeaders(headers)
+    }
+    public static func setHeaders_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let jsHeaders = callInfo[0]
+        let headers = HashMap<String, String>()
+
+        // Use JS built-in method to get all keys of object
+        let objectKeys = context.global["Object"].asObject()["keys"].asFunction()
+        let keysJSArray = objectKeys.call([jsHeaders]).asArray(context)
+        let length = keysJSArray.size
+        let jsHeadersObj = jsHeaders.asObject(context)
+
+        for (i in 0..length) {
+            let key = keysJSArray[i].toString()
+            let value = jsHeadersObj[key].toString()
+            headers.add(key, value)
+        }
+        let RET = clazz.setHeaders(headers)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func removeHeader(name: String): Unit {
+        cjEventSource.removeHeader(name)
+    }
+    public static func removeHeader_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let name = callInfo[0].toString()
+        let RET = clazz.removeHeader(name)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func clearHeaders(): Unit {
+        cjEventSource.clearHeaders()
+    }
+    public static func clearHeaders_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.clearHeaders()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
     public func toJSValue(context: JSContext): JSValue {
         let ext = context.external(this)
         let obj = context.object()
@@ -145,6 +227,10 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj["setExceptionHandler"] = context.function(setExceptionHandler_ArkTS_Interop_Identifier).toJSValue()
         obj["onMessage"] = context.function(onMessage_ArkTS_Interop_Identifier).toJSValue()
         obj["onEvent"] = context.function(onEvent_ArkTS_Interop_Identifier).toJSValue()
+        obj["setHeader"] = context.function(setHeader_ArkTS_Interop_Identifier).toJSValue()
+        obj["setHeaders"] = context.function(setHeaders_ArkTS_Interop_Identifier).toJSValue()
+        obj["removeHeader"] = context.function(removeHeader_ArkTS_Interop_Identifier).toJSValue()
+        obj["clearHeaders"] = context.function(clearHeaders_ArkTS_Interop_Identifier).toJSValue()
 
         obj.attachCJObject(ext)
         obj.toJSValue()

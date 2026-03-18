@@ -27,32 +27,32 @@ public struct Message {
     static let FIELD_MARK_COLON = ":"
 
     /*
-     * 事件类型。可选。自定义的任意值
+     * Event type. Optional. Custom arbitrary value
      */
     let event: Option<String>
 
     /*
-     * 事件id。可选。可用于重连时定位上次消息位置
+     * Event ID. Optional. Can be used to locate the last message position on reconnection
      */
     let id: Option<String>
 
     /*
-     * 重试时间（毫秒）。可选
+     * Retry time (milliseconds). Optional
      */
     let retry: Option<UInt16>
 
     /*
-     * 注释。可选
+     * Comment. Optional
      */
     let comment: Option<String>
 
     /*
-     * 数据。
+     * Data.
      */
     let dataList: ArrayList<String>
 
     /**
-     * 拓展属性
+     * Extended properties
      */
     let ext = MessageExtend()
 
@@ -109,14 +109,14 @@ public struct Message {
     public func toMessageString(): String {
         let body = StringBuilder()
 
-        // 处理注释
+        // Process comment
         if (this.comment.isSome()) {
             body.append(FIELD_MARK_COLON)
             body.append(this.comment.getOrThrow())
             body.append(NEXT_DATA_LINE)
         }
 
-        // 处理消息体
+        // Process message body
         if (this.event.isSome()) {
             body.append(FIELD_LABEL_EVENT)
             body.append(FIELD_MARK_COLON)
@@ -244,7 +244,7 @@ public class MessageBuilder {
                 mb.data(getValue(line))
             } else if (line == "") {
             } else {
-                log.warn("未识别的数据行:${line}")
+                log.warn("Unrecognized data line: ${line}")
             }
         }
 

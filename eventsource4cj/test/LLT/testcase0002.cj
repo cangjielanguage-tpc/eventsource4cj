@@ -15,23 +15,23 @@ func sseServer(): Unit {
 
     let endpoint = "/bus"
 
-    // 发布端点(客户端连接事件处理回调函数)
+    // Publish endpoint (client connection event handler callback)
     sseServer.publish(
         endpoint,
         {
             broker: SseEmitterBroker =>
-                println("客户端连接事件处理回调函数被调用")
+                println("Client connection event handler callback invoked")
                 true
         }
     )
 
-    // 发布端点(不传客户端连接事件处理回调函数)
+    // Publish endpoint (without client connection event handler callback)
     //sseServer.publish(endpoint)
 
-    // 获取端点绑定的消息发送器
+    // Get emitter bound to the endpoint
     let emitter = SseEmitter.getEmitter(endpoint).getOrThrow()
 
-    // 向该端点上的全部连接发送消息
+    // Send message to all connections on this endpoint
     let message = MessageBuilder().data("hello world").build()
     spawn {
         while (true) {
@@ -41,14 +41,14 @@ func sseServer(): Unit {
 }
 
 func sseClient(): Unit {
-    // 创建消息源
+    // Create message source
     let eventsource = EventSource("http://127.0.0.1:8080/bus")
 
-    // 设置消息处理函数
-    eventsource.onMessage({msg => println("默认处理消息：${msg.toMessageString()}")})
-    eventsource.onEvent("test-event", {msg => println("处理消息：${msg.toMessageString()}")})
+    // Set message handler
+    eventsource.onMessage({msg => println("Default message handler: ${msg.toMessageString()}")})
+    eventsource.onEvent("test-event", {msg => println("Handle message: ${msg.toMessageString()}")})
 
-    // 开始订阅消息（异步操作）
+    // Start message subscription (async operation)
     let future = eventsource.subscribe()
 
     try {

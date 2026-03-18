@@ -17,6 +17,14 @@ export declare class EventSource {
 
   subscribe(): Promise<void>
 
+  setHeader(name: string, value: string): void
+
+  setHeaders(headers: Record<string, string>): void
+
+  removeHeader(name: string): void
+
+  clearHeaders(): void
+
   constructor(url: string)
 }
 

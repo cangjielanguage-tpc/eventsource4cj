@@ -28,7 +28,7 @@ public class EventSource {
             tcpSocket.noDelay = true
             var socket = ObseredSocket(tcpSocket)
             this.socket = socket
-            println("重置了socket")
+            println("Socket reset")
             socket.connect()
             return socket
     }
@@ -94,10 +94,10 @@ public class EventSource {
                 "text/event-stream"
         })
         if (!isEventStream) {
-            throw Exception("服务端响应类型错误:Content-Type不正确!")
+            throw Exception("Server response type error: Content-Type is incorrect!")
         }
 
-        // 处理响应流
+        // Process response stream
         let nextLine = UInt8(b'\n')
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>()
@@ -105,7 +105,7 @@ public class EventSource {
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
-                return 0 // chuned流结束 连接关闭
+                return 0 // Chunked stream ended, connection closed
             }
             // println("mdebug0:"+String.fromUtf8(buffer[0..len]).replace('\r', 'Ř').replace('\n', 'Ň').replace('\t', 'Ť').replace(' ', 'ø'))
             for (byte in buffer[0..len]) {
@@ -122,17 +122,17 @@ public class EventSource {
                 }
 
                 try {
-                    // 已缓存了完整消息
+                    // Complete message cached
                     messageaHolder.add(byte)
                     let msg = messageaHolder.toArray()
                     let message = MessageBuilder.resolve(msg)
 
-                    // 消息指定了重试时间则按指定值设置
+                    // Set retry time if specified in message
                     if (message.retryInMills.isSome()) {
                         this.retryInMills = message.retryInMills.getOrThrow()
                     }
 
-                    // 调用消息处理函数
+                    // Call message handler
                     if (message.eventType.isNone()) {
                         this.defaultMessageHandler(message)
                     } else {
@@ -223,15 +223,15 @@ public class ObseredSocket <: StreamingSocket {
 
 
 func sseClient(): Unit {
-    // 创建消息源
+    // Create message source
     let eventsource = EventSource("http://127.0.0.1:9000/sse/range/10/1/100/2")
 
-    // 设置消息处理函数
-    eventsource.onMessage({msg => println("默认处理消息：${msg.toMessageString()}")})
-    // eventsource.onEvent("test-event", {msg => println("处理消息：${msg.toMessageString()}")})
+    // Set message handler
+    eventsource.onMessage({msg => println("Default message handler: ${msg.toMessageString()}")})
+    // eventsource.onEvent("test-event", {msg => println("Handle message: ${msg.toMessageString()}")})
 
     try {
-        // 开始订阅消息（异步操作）
+        // Start message subscription (async operation)
         let future = eventsource.subscribe()
         future.get(Duration.second * 10)
     } catch (_: TimeoutException) {
