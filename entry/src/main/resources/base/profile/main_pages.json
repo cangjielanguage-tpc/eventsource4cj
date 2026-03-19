@@ -2,6 +2,7 @@
   "src": [
     "pages/Index",
     "pages/PerformanceTest",
-    "pages/HeadersTest"
+    "pages/HeadersTest",
+    "pages/PostHeadersTest"
   ]
 }

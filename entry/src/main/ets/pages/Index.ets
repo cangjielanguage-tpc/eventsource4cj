@@ -1,8 +1,3 @@
-import { Message, EventSource, testCJ } from "ssehybrid"
-import hilog from "@ohos.hilog";
-import { PerformanceTest } from "./PerformanceTest";
-import { sse_ets } from "./sse_ets_local";
-import { SseUrl } from "./Constants"
 import { router } from "@kit.ArkUI";
 
 @Entry
@@ -27,6 +22,15 @@ struct Index {
         .onClick(async () => {
           router.pushUrl({
             url: 'pages/HeadersTest'
+          })
+        })
+        .margin({top: 3, bottom: 3})
+      Button("Custom Post Body And Headers Test")
+        .fontSize($r('app.float.page_text_font_size'))
+        .width('80%')
+        .onClick(async () => {
+          router.pushUrl({
+            url: 'pages/PostHeadersTest'
           })
         })
         .margin({top: 3, bottom: 3})

@@ -193,3 +193,163 @@ export function sse_cj_headers_management(
     view['message'] = `Error: ${e.message}`
   }
 }
+
+/**
+ * SSE POST connection with request body
+ */
+export function sse_cj_post(
+  view: object,
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
+): void {
+  try {
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use POST endpoint
+    url = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse POST done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    // Create request body
+    let requestBody = JSON.stringify({
+      query: 'test data',
+      timestamp: new Date().toISOString(),
+      clientType: 'arkts'
+    })
+
+    let es = new EventSource(url, requestBody)
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `Received: ${msg.data}`)
+      if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}
+
+/**
+ * SSE POST connection with body and custom headers
+ */
+export function sse_cj_post_with_headers(
+  view: object,
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
+): void {
+  try {
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use secure POST endpoint
+    url = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse POST with headers done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    // Create request body
+    let requestBody = JSON.stringify({
+      query: 'secure data',
+      timestamp: new Date().toISOString(),
+      clientType: 'arkts-secure'
+    })
+
+    let es = new EventSource(url, requestBody)
+
+    // Set custom headers
+    es.setHeader('X-Auth-Token', 'my-secret-token-12345')
+    es.setHeader('X-Client-Id', 'arkts-post-client')
+    es.setHeader('Content-Type', 'application/json')
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `Received: ${msg.data}`)
+      if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}
+
+/**
+ * Demonstrate POST body management functionality
+ */
+export function sse_cj_post_body_management(
+  view: object,
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
+): void {
+  try {
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    url = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse POST body management done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    let es = new EventSource(url)
+
+    // Step 1: Set body using setBody
+    es.setBody(JSON.stringify({ step: 1, data: 'initial' }))
+    hilog.info(0, 'mdebug', 'Step 1: Set body using setBody()')
+
+    // Step 2: Update body
+    es.setBody(JSON.stringify({ step: 2, data: 'updated' }))
+    hilog.info(0, 'mdebug', 'Step 2: Updated body with new content')
+
+    // Step 3: Clear body (will revert to GET)
+    es.clearBody()
+    hilog.info(0, 'mdebug', 'Step 3: Cleared body (will use GET)')
+
+    // Step 4: Set body again for POST request
+    es.setBody(JSON.stringify({ step: 4, data: 'final', timestamp: new Date().toISOString() }))
+    hilog.info(0, 'mdebug', 'Step 4: Set body again for POST request')
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `Received: ${msg.data}`)
+      if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}

@@ -1,5 +1,3 @@
-import { Message, EventSource, testCJ } from "ssehybrid"
-import hilog from "@ohos.hilog";
 import { sse_cj_headers_management, sse_cj_with_header, sse_cj_with_headers } from "./sse_cj";
 import { SseUrlSecure } from "./Constants"
 
@@ -39,7 +37,7 @@ export struct HeadersTest {
   @Builder
   buildHeaderRow(page: number, count: number, interval: number, datasize: number) {
     Flex({ direction: FlexDirection.Row }) {
-      Button(`${page}pages * ${count}`)
+      Button(`${page} pages * ${count}`)
         .fontSize($r('app.float.page_text_font_size'))
         .onClick(async () => {
           sse_cj_with_header(this, SseUrlSecure, page, count, interval, datasize)
@@ -53,7 +51,7 @@ export struct HeadersTest {
   @Builder
   buildHeadersRow(page: number, count: number, interval: number, datasize: number) {
     Flex({ direction: FlexDirection.Row }) {
-      Button(`${page}pages * ${count}`)
+      Button(`${page} pages * ${count}`)
         .fontSize($r('app.float.page_text_font_size'))
         .onClick(async () => {
           sse_cj_with_headers(this, SseUrlSecure, page, count, interval, datasize)
@@ -66,7 +64,7 @@ export struct HeadersTest {
   @Builder
   buildHeadersManagementRow(page: number, count: number, interval: number, datasize: number) {
     Flex({ direction: FlexDirection.Row }) {
-      Button(`${page}pages * ${count}`)
+      Button(`${page} pages * ${count}`)
         .fontSize($r('app.float.page_text_font_size'))
         .onClick(async () => {
           sse_cj_headers_management(this, SseUrlSecure, page, count, interval, datasize)

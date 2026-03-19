@@ -26,6 +26,8 @@ public class EventSource {
     var defaultMessageHandler = {_: Message =>}
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
     var socket: ?ObseredSocket = None
+    var requestBody: Option<String> = Option.None
+    var requestBodyBytes: Option<Array<UInt8>> = Option.None
     let TcpSocketConnector = {
         sa: SocketAddress =>
             var tcpSocket = TcpSocket(sa)
@@ -48,6 +50,53 @@ public class EventSource {
         this.client = client
         this.url = url
         this.bufferSize = bufferSize
+    }
+
+    public init(url: String, body: String) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+        this.client = client
+        this.url = url
+        this.bufferSize = 1024 * 8
+        this.requestBody = Option.Some(body)
+    }
+
+    public init(url: String, body: String, bufferSize: Int64) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+        this.client = client
+        this.url = url
+        this.bufferSize = bufferSize
+        this.requestBody = Option.Some(body)
+    }
+
+    public init(url: String, body: Array<UInt8>) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+        this.client = client
+        this.url = url
+        this.bufferSize = 1024 * 8
+        this.requestBodyBytes = Option.Some(body)
+    }
+
+    public init(url: String, body: Array<UInt8>, bufferSize: Int64) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+        this.client = client
+        this.url = url
+        this.bufferSize = bufferSize
+        this.requestBodyBytes = Option.Some(body)
+    }
+
+    public func setBody(body: String): Unit {
+        this.requestBody = Option.Some(body)
+        this.requestBodyBytes = Option.None
+    }
+
+    public func setBody(body: Array<UInt8>): Unit {
+        this.requestBodyBytes = Option.Some(body)
+        this.requestBody = Option.None
+    }
+
+    public func clearBody(): Unit {
+        this.requestBody = Option.None
+        this.requestBodyBytes = Option.None
     }
 
     public func setHeader(name: String, value: String): Unit {
@@ -113,7 +162,19 @@ public class EventSource {
         }
 
         let endpoint = url
-        let req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
+        let req: HttpRequest
+        if (this.requestBody.isSome()) {
+            // POST request with String body
+            let body = this.requestBody.getOrThrow()
+            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(body).post().build()
+        } else if (this.requestBodyBytes.isSome()) {
+            // POST request with Array<UInt8> body
+            let body = this.requestBodyBytes.getOrThrow()
+            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(body).post().build()
+        } else {
+            // GET request
+            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
+        }
         let rsp = client.send(req)
         let isEventStream = rsp.headers.iterator().any({
             head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0).getOrThrow().toAsciiLower() ==

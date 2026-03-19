@@ -25,7 +25,17 @@ export declare class EventSource {
 
   clearHeaders(): void
 
+  setBody(body: string): void
+
+  setBody(body: ArrayBuffer): void
+
+  clearBody(): void
+
   constructor(url: string)
+
+  constructor(url: string, body: string)
+
+  constructor(url: string, body: ArrayBuffer)
 }
 
 export declare function testCJ(s: string): string

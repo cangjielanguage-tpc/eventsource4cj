@@ -23,6 +23,8 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 clazz.addMethod("setHeaders", context.function(setHeaders_ArkTS_Interop_Identifier))
                 clazz.addMethod("removeHeader", context.function(removeHeader_ArkTS_Interop_Identifier))
                 clazz.addMethod("clearHeaders", context.function(clearHeaders_ArkTS_Interop_Identifier))
+                clazz.addMethod("setBody", context.function(setBody_ArkTS_Interop_Identifier))
+                clazz.addMethod("clearBody", context.function(clearBody_ArkTS_Interop_Identifier))
                 return clazz
         }
     }
@@ -31,11 +33,35 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         this.cjEventSource = CJEventSource(url)
     }
 
+    public init(url: String, body: String) {
+        this.cjEventSource = CJEventSource(url, body)
+    }
+
+    public init(url: String, body: Array<UInt8>) {
+        this.cjEventSource = CJEventSource(url, body)
+    }
+
     public static func jsConstructor(context: JSContext, callInfo: JSCallInfo): JSValue {
-        let arg1768443191338681800 = String.fromJSValue(context, callInfo[0])
+        let argCount = callInfo.count
+        let url = String.fromJSValue(context, callInfo[0])
 
         JSCurrentJSContext.set(context)
-        let clazz = EventSource(arg1768443191338681800)
+        let clazz: EventSource
+        if (argCount >= 2) {
+            // Check if second argument is String or ArrayBuffer
+            let jsBody = callInfo[1]
+            if (jsBody.isString()) {
+                let body = String.fromJSValue(context, jsBody)
+                clazz = EventSource(url, body)
+            } else {
+                // Treat as ArrayBuffer/Uint8Array
+                let buffer = jsBody.asArrayBuffer()
+                let body = buffer.readBytes()
+                clazz = EventSource(url, body)
+            }
+        } else {
+            clazz = EventSource(url)
+        }
         JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
@@ -219,6 +245,51 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         return RET.toJSValue(context)
     }
 
+    public func setBody(body: String): Unit {
+        cjEventSource.setBody(body)
+    }
+
+    public func setBody(body: Array<UInt8>): Unit {
+        cjEventSource.setBody(body)
+    }
+
+    public static func setBody_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let jsBody = callInfo[0]
+        let RET: Unit
+        if (jsBody.isString()) {
+            let body = jsBody.toString()
+            RET = clazz.setBody(body)
+        } else {
+            // Treat as ArrayBuffer/Uint8Array
+            let buffer = jsBody.asArrayBuffer()
+            let body = buffer.readBytes()
+            RET = clazz.setBody(body)
+        }
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func clearBody(): Unit {
+        cjEventSource.clearBody()
+    }
+    public static func clearBody_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.clearBody()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
     public func toJSValue(context: JSContext): JSValue {
         let ext = context.external(this)
         let obj = context.object()
@@ -231,6 +302,8 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj["setHeaders"] = context.function(setHeaders_ArkTS_Interop_Identifier).toJSValue()
         obj["removeHeader"] = context.function(removeHeader_ArkTS_Interop_Identifier).toJSValue()
         obj["clearHeaders"] = context.function(clearHeaders_ArkTS_Interop_Identifier).toJSValue()
+        obj["setBody"] = context.function(setBody_ArkTS_Interop_Identifier).toJSValue()
+        obj["clearBody"] = context.function(clearBody_ArkTS_Interop_Identifier).toJSValue()
 
         obj.attachCJObject(ext)
         obj.toJSValue()
