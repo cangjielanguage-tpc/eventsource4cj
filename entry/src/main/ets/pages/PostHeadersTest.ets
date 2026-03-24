@@ -7,14 +7,15 @@ export struct PostHeadersTest {
   build() {
     Scroll() {
       Flex({ direction: FlexDirection.Column }) {
-        Text("SSE connection with single header setting")
+        Text("Post Headers Test:")
+        Text("SSE connection with single header setting.")
           .fontSize(15)
         this.buildPostRow(1, 50, 100, 1)
         this.buildPostRow(1, 100, 100, 1)
         this.buildPostRow(1, 500, 100, 1)
         this.buildPostRow(1, 1000, 100, 1)
         this.buildPostRow(1, 5000, 100, 1)
-        Text("SSE connection with batch custom headers")
+        Text("SSE connection with batch custom headers.")
           .fontSize(15)
         this.buildPostHeadersRow(1, 50, 100, 1)
         this.buildPostHeadersRow(1, 100, 100, 1)

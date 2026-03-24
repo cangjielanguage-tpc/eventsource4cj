@@ -34,6 +34,15 @@ struct Index {
           })
         })
         .margin({top: 3, bottom: 3})
+      Button("Gzip Request and Response Test")
+        .fontSize($r('app.float.page_text_font_size'))
+        .width('80%')
+        .onClick(async () => {
+          router.pushUrl({
+            url: 'pages/CompressTest'
+          })
+        })
+        .margin({top: 3, bottom: 3})
     }
     .width('100%')
     .height('100%')

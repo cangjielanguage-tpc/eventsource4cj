@@ -11,7 +11,7 @@ export struct PerformanceTest {
   build() {
     Scroll() {
       Flex({ direction: FlexDirection.Column }) {
-        Text("Simulate tiny data scenario. Data: 0 bytes")
+        Text("Simulate tiny data scenario. Data: 0 bytes.")
           .fontSize(15)
         this.buildRow(1, 100, 100, 0)
         this.buildRow(10, 100, 100, 0)
@@ -22,14 +22,14 @@ export struct PerformanceTest {
         this.buildRow(1000, 1, 100, 0)
         this.buildRow(10000, 1, 100, 0)
         this.buildRow(100000, 1, 100, 0)
-        Text("Simulate large data scenario. Data: 785 bytes")
+        Text("Simulate large data scenario. Data: 785 bytes.")
           .fontSize(15)
         this.buildRow(1, 1, 100, 2)
         this.buildRow(10, 1, 100, 2)
         this.buildRow(100, 1, 100, 2)
         this.buildRow(1000, 1, 100, 2)
         this.buildRow(10000, 1, 100, 2)
-        Text("Simulate markdown AI scenario. Data: 330 bytes")
+        Text("Simulate markdown AI scenario. Data: 330 bytes.")
           .fontSize(15)
         this.buildRow(1, 50, 100, 1)
         this.buildRow(1, 100, 100, 1)

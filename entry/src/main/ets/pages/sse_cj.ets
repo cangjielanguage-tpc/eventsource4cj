@@ -1,4 +1,4 @@
-import { Message, EventSource, testCJ } from 'ssehybrid'
+import { EventSource } from 'ssehybrid'
 import hilog from '@ohos.hilog'
 import { systemDateTime } from '@kit.BasicServicesKit'
 
@@ -344,6 +344,92 @@ export function sse_cj_post_body_management(
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
       if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}
+
+/**
+ * SSE connection with GZIP response decompression
+ * Tests the client's ability to decompress GZIP encoded responses
+ */
+export function sse_cj_gzip_response(
+  view: object,
+  url: string
+): void {
+  try {
+    // Use the GZIP response test endpoint
+    let testUrl = `${url}`
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse GZIP response decompression done, ${count} messages, time: ${time} ms`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    let es = new EventSource(testUrl)
+
+    // Enable GZIP to request compressed response and handle decompression
+    es.setEnableGzip(true)
+    hilog.info(0, 'mdebug', `GZIP response decompression enabled: ${es.isGzipEnabled()}`)
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `GZIP Response: ${msg.data}`)
+      if (count >= 5) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}
+
+/**
+ * SSE POST with both GZIP request body compression and response decompression
+ */
+export function sse_cj_gzip_full(
+  view: object,
+  url: string
+): void {
+  try {
+    // Use the GZIP response POST endpoint
+    let testUrl = `${url}`
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse GZIP full (request + response) done, ${count} messages, time: ${time} ms`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    // Create request body
+    let requestBody = JSON.stringify({
+      query: 'gzip full test',
+      timestamp: new Date().toISOString(),
+      clientType: 'arkts-gzip-full'
+    })
+
+    let es = new EventSource(testUrl, requestBody)
+
+    // Enable both request body compression and response decompression
+    es.setCompressRequestBody(true)  // This also enables GZIP response handling
+    hilog.info(0, 'mdebug', `GZIP full mode enabled: ${es.isGzipEnabled()}, compress: ${es.isRequestBodyCompressionEnabled()}`)
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `GZIP Full: ${msg.data}`)
+      if (count >= 5) {
         finish()
       }
     })

@@ -2,6 +2,8 @@ const express = require('express')
 const fs = require('fs')
 const serveStatic = require('serve-static')
 const { default: SseStream } = require('ssestream')
+const compression = require('compression')
+const zlib = require('zlib')
 
 const tinyData = ''
 const normalData =
@@ -22,11 +24,37 @@ function getData(datasize) {
     return tinyData
 }
 
+// Middleware to decompress GZIP request body
+function gzipBodyParser(req, res, next) {
+    const contentEncoding = req.headers['content-encoding']
+    if (contentEncoding === 'gzip') {
+        let chunks = []
+        req.on('data', chunk => chunks.push(chunk))
+        req.on('end', () => {
+            const buffer = Buffer.concat(chunks)
+            zlib.gunzip(buffer, (err, decompressed) => {
+                if (err) {
+                    console.error('GZIP decompression error:', err)
+                    res.status(400).json({ error: 'Invalid GZIP data' })
+                    return
+                }
+                req.body = decompressed
+                req.decompressedBody = decompressed.toString('utf8')
+                next()
+            })
+        })
+    } else {
+        next()
+    }
+}
+
 const app = express()
 app.use(serveStatic(__dirname))
+app.use(compression()) // Enable response compression
 app.use(express.json())
 app.use(express.text())
 app.use(express.raw({ type: 'application/octet-stream' }))
+app.use(gzipBodyParser) // Handle GZIP request bodies
 
 // POST SSE endpoint with body support
 app.post('/sse/post/range/:page/:count/:interval/:datasize?', (req, res) => {
@@ -228,6 +256,85 @@ app.get('/sse', (req, res) => {
         sseStream.unpipe(res)
     })
 })
+
+// GZIP compressed SSE response endpoint (for testing response decompression)
+// This endpoint returns a complete GZIP compressed SSE response
+app.get('/sse/gzip-response/test', (req, res) => {
+    console.log('GZIP Response Test:')
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    
+    // Generate SSE messages
+    const messages = []
+    for (let i = 1; i <= 5; i++) {
+        messages.push(`event: gzip-test\ndata: Message ${i} from GZIP compressed response\n\n`)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('gzip')) {
+        // Return GZIP compressed response
+        zlib.gzip(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('GZIP compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'gzip')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent GZIP compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
+// GZIP compressed SSE POST endpoint (for testing both request and response compression)
+app.post('/sse/gzip-response/post', (req, res) => {
+    console.log('GZIP Response POST Test:')
+    console.log('  Content-Encoding:', req.headers['content-encoding'])
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    console.log('  Decompressed Body:', req.decompressedBody || 'N/A')
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    const requestBody = req.decompressedBody || JSON.stringify(req.body) || 'empty'
+    
+    // Generate SSE messages including request body info
+    const messages = []
+    for (let i = 1; i <= 5; i++) {
+        messages.push(`event: gzip-post-test\ndata: Message ${i}|body:${requestBody.substring(0, 50)}\n\n`)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('gzip')) {
+        // Return GZIP compressed response
+        zlib.gzip(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('GZIP compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'gzip')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent GZIP compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
 const PORT = process.env.PORT || 9000
 app.listen(PORT, '0.0.0.0', (err) => {
     if (err) {

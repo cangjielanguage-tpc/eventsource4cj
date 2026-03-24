@@ -3,6 +3,7 @@
     "pages/Index",
     "pages/PerformanceTest",
     "pages/HeadersTest",
-    "pages/PostHeadersTest"
+    "pages/PostHeadersTest",
+    "pages/CompressTest"
   ]
 }

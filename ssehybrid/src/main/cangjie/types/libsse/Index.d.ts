@@ -31,6 +31,14 @@ export declare class EventSource {
 
   clearBody(): void
 
+  setEnableGzip(enable: boolean): void
+
+  setCompressRequestBody(compress: boolean): void
+
+  isGzipEnabled(): boolean
+
+  isRequestBodyCompressionEnabled(): boolean
+
   constructor(url: string)
 
   constructor(url: string, body: string)

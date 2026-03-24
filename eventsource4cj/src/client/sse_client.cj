@@ -10,6 +10,7 @@ See the Mulan PSL v2 for more details.
 package eventsource4cj.client
 
 import eventsource4cj.model.*
+import eventsource4cj.util.*
 import std.collection.*
 import stdx.net.http.*
 import std.net.*
@@ -28,6 +29,8 @@ public class EventSource {
     var socket: ?ObseredSocket = None
     var requestBody: Option<String> = Option.None
     var requestBodyBytes: Option<Array<UInt8>> = Option.None
+    var enableGzip: Bool = false
+    var compressRequestBody: Bool = false
     let TcpSocketConnector = {
         sa: SocketAddress =>
             var tcpSocket = TcpSocket(sa)
@@ -99,6 +102,25 @@ public class EventSource {
         this.requestBodyBytes = Option.None
     }
 
+    public func setEnableGzip(enable: Bool): Unit {
+        this.enableGzip = enable
+    }
+
+    public func setCompressRequestBody(compress: Bool): Unit {
+        this.compressRequestBody = compress
+        if (compress) {
+            this.enableGzip = true
+        }
+    }
+
+    public func isGzipEnabled(): Bool {
+        return this.enableGzip
+    }
+
+    public func isRequestBodyCompressionEnabled(): Bool {
+        return this.compressRequestBody
+    }
+
     public func setHeader(name: String, value: String): Unit {
         this.customHeaders.add(name, value)
     }
@@ -156,6 +178,12 @@ public class EventSource {
         if (lastMessageId.isSome()) {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
+
+        // Add Accept-Encoding: gzip if enabled
+        if (this.enableGzip) {
+            headers.add("Accept-Encoding", "gzip")
+        }
+
         // Add custom headers
         for ((name, value) in this.customHeaders) {
             headers.add(name, value)
@@ -165,17 +193,39 @@ public class EventSource {
         let req: HttpRequest
         if (this.requestBody.isSome()) {
             // POST request with String body
-            let body = this.requestBody.getOrThrow()
-            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(body).post().build()
+            var body = this.requestBody.getOrThrow()
+            var bodyBytes = body.toArray()
+
+            // Compress request body if enabled
+            if (this.compressRequestBody) {
+                bodyBytes = GzipUtil.compress(bodyBytes)
+                headers.add("Content-Encoding", "gzip")
+            }
+
+            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(bodyBytes).post().build()
         } else if (this.requestBodyBytes.isSome()) {
             // POST request with Array<UInt8> body
-            let body = this.requestBodyBytes.getOrThrow()
+            var body = this.requestBodyBytes.getOrThrow()
+
+            // Compress request body if enabled
+            if (this.compressRequestBody) {
+                body = GzipUtil.compress(body)
+                headers.add("Content-Encoding", "gzip")
+            }
+
             req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(body).post().build()
         } else {
             // GET request
             req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
         }
         let rsp = client.send(req)
+
+        // Check for GZIP encoded response
+        let isGzipResponse = rsp.headers.iterator().any({
+            head => head[0].toAsciiLower() == "content-encoding" &&
+                    head[1].iterator().any({v => v.toAsciiLower() == "gzip"})
+        })
+
         let isEventStream = rsp.headers.iterator().any({
             head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0).getOrThrow().toAsciiLower() ==
                 "text/event-stream"
@@ -192,6 +242,77 @@ public class EventSource {
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>()
         let buffer = Array<UInt8>(bufferSize, {_ => 0})
+
+        // For GZIP response, we need to buffer and decompress
+        // Note: SSE streams are typically not GZIP compressed due to streaming nature
+        // This implementation handles both cases
+        if (isGzipResponse) {
+            // Buffer the entire response for GZIP decompression
+            let gzipBuffer = ArrayList<UInt8>()
+            while (true) {
+                var len = stream.read(buffer)
+                if (len == 0) {
+                    break
+                }
+                for (byte in buffer[0..len]) {
+                    gzipBuffer.add(byte)
+                }
+            }
+
+            // Decompress GZIP data
+            let decompressed = GzipUtil.decompress(gzipBuffer.toArray())
+
+            // Process decompressed data
+            for (byte in decompressed) {
+                if (byte != nextLine) {
+                    messageaHolder.add(byte)
+                    continue
+                }
+
+                let lastByte = messageaHolder.get(messageaHolder.size - 1)
+
+                if (lastByte.isNone() || lastByte != nextLine) {
+                    messageaHolder.add(byte)
+                    continue
+                }
+
+                try {
+                    // Complete message cached
+                    messageaHolder.add(byte)
+                    let msg = messageaHolder.toArray()
+                    let message = MessageBuilder.resolve(msg)
+
+                    // Set retry time if specified in message
+                    if (message.retryInMills.isSome()) {
+                        this.retryInMills = message.retryInMills.getOrThrow()
+                    }
+
+                    // Call message handler
+                    if (message.eventType.isNone()) {
+                        this.defaultMessageHandler(message)
+                    } else {
+                        let event = message.eventType.getOrThrow()
+                        let handler = this.handlers.get(event)
+                        if (handler.isNone()) {
+                            this.defaultMessageHandler(message)
+                        } else {
+                            handler.getOrThrow()(message)
+                        }
+                    }
+
+                    if (message.msgId.isSome()) {
+                        this.lastMessageId = message.msgId
+                    }
+                } catch (e: Exception) {
+                    exceptionHandler(e, buffer)
+                } finally {
+                    messageaHolder.clear()
+                }
+            }
+            return 0
+        }
+
+        // Normal non-GZIP streaming processing
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
@@ -285,13 +406,17 @@ public class ObseredSocket <: StreamingSocket {
     public static let socket_string_write = StringBuilder()
     public func read(buffer: Array<UInt8>): Int64 {
         let len = socket.read(buffer)
-        socket_string_read.append(
-            "${String.fromUtf8(buffer[..len]).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
+        if (String.checkUtf8Encoding(buffer)) {
+            socket_string_read.append(
+                "${String.fromUtf8(buffer[..len]).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
+        }
         return len
     }
     public func write(buffer: Array<UInt8>): Unit {
-        socket_string_write.append(
-            "${String.fromUtf8(buffer).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
+        if (String.checkUtf8Encoding(buffer)) {
+            socket_string_write.append(
+                "${String.fromUtf8(buffer).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
+        }
         return socket.write(buffer)
     }
     public func close(): Unit {
