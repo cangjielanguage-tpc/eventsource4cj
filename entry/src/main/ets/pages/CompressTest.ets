@@ -14,9 +14,17 @@ export struct GzipTest {
         Text("SSE connection with GZIP response decompression.")
           .fontSize(15)
         this.buildGzipRspRow(1, 50, 100, 1)
+        this.buildGzipRspRow(1, 100, 100, 1)
+        this.buildGzipRspRow(1, 500, 100, 1)
+        this.buildGzipRspRow(1, 1000, 100, 1)
+        this.buildGzipRspRow(1, 5000, 100, 1)
         Text("SSE POST with both GZIP request body compression and response decompression.")
           .fontSize(15)
         this.buildGzipFullRow(1, 50, 100, 1)
+        this.buildGzipFullRow(1, 100, 100, 1)
+        this.buildGzipFullRow(1, 500, 100, 1)
+        this.buildGzipFullRow(1, 1000, 100, 1)
+        this.buildGzipFullRow(1, 5000, 100, 1)
       }
     }
     .scrollable(ScrollDirection.Vertical)
@@ -26,10 +34,10 @@ export struct GzipTest {
   @Builder
   buildGzipRspRow(page: number, count: number, interval: number, datasize: number) {
     Flex({ direction: FlexDirection.Row }) {
-      Button(`Test Only Rsp`)
+      Button(`${page} pages * ${count}`)
         .fontSize($r('app.float.page_text_font_size'))
         .onClick(async () => {
-          sse_cj_gzip_response(this, SseUrlGzip)
+          sse_cj_gzip_response(this, SseUrlGzip, page, count, interval, datasize)
         })
         .width('50%')
     }
@@ -40,10 +48,10 @@ export struct GzipTest {
   @Builder
   buildGzipFullRow(page: number, count: number, interval: number, datasize: number) {
     Flex({ direction: FlexDirection.Row }) {
-      Button(`Test Gzip Req & Rsp`)
+      Button(`${page} pages * ${count}`)
         .fontSize($r('app.float.page_text_font_size'))
         .onClick(async () => {
-          sse_cj_gzip_full(this, SseUrlGzipFull)
+          sse_cj_gzip_full(this, SseUrlGzipFull, page, count, interval, datasize)
         })
         .width('50%')
     }

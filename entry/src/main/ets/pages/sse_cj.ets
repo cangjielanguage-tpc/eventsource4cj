@@ -360,16 +360,23 @@ export function sse_cj_post_body_management(
  */
 export function sse_cj_gzip_response(
   view: object,
-  url: string
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
 ): void {
   try {
-    // Use the GZIP response test endpoint
-    let testUrl = `${url}`
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use the GZIP response test endpoint with path parameters
+    let testUrl = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
     let count = 0
     let t0 = systemDateTime.getTime(true)
     let finish = () => {
       let time = systemDateTime.getTime(true) - t0
-      let msg = `cj sse GZIP response decompression done, ${count} messages, time: ${time} ms`
+      let msg = `cj sse GZIP response decompression done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
       hilog.warn(0, 'mdebug', msg)
       view['message'] = msg
     }
@@ -383,7 +390,7 @@ export function sse_cj_gzip_response(
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `GZIP Response: ${msg.data}`)
-      if (count >= 5) {
+      if (count >= max) {
         finish()
       }
     })
@@ -399,16 +406,23 @@ export function sse_cj_gzip_response(
  */
 export function sse_cj_gzip_full(
   view: object,
-  url: string
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
 ): void {
   try {
-    // Use the GZIP response POST endpoint
-    let testUrl = `${url}`
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use the GZIP response POST endpoint with path parameters
+    let testUrl = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
     let count = 0
     let t0 = systemDateTime.getTime(true)
     let finish = () => {
       let time = systemDateTime.getTime(true) - t0
-      let msg = `cj sse GZIP full (request + response) done, ${count} messages, time: ${time} ms`
+      let msg = `cj sse GZIP full (request + response) done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
       hilog.warn(0, 'mdebug', msg)
       view['message'] = msg
     }
@@ -429,7 +443,7 @@ export function sse_cj_gzip_full(
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `GZIP Full: ${msg.data}`)
-      if (count >= 5) {
+      if (count >= max) {
         finish()
       }
     })

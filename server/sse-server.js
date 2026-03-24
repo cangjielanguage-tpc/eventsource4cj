@@ -259,16 +259,24 @@ app.get('/sse', (req, res) => {
 
 // GZIP compressed SSE response endpoint (for testing response decompression)
 // This endpoint returns a complete GZIP compressed SSE response
-app.get('/sse/gzip-response/test', (req, res) => {
+app.get('/sse/gzip-response/test/:page/:count/:interval/:datasize?', (req, res) => {
     console.log('GZIP Response Test:')
     console.log('  Accept-Encoding:', req.headers['accept-encoding'])
     
     const acceptEncoding = req.headers['accept-encoding'] || ''
     
-    // Generate SSE messages
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages based on parameters
     const messages = []
-    for (let i = 1; i <= 5; i++) {
-        messages.push(`event: gzip-test\ndata: Message ${i} from GZIP compressed response\n\n`)
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: gzip-test\ndata: ${i}-${j + 1} from GZIP compressed response${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
     }
     const sseContent = messages.join('')
     
@@ -296,7 +304,7 @@ app.get('/sse/gzip-response/test', (req, res) => {
 })
 
 // GZIP compressed SSE POST endpoint (for testing both request and response compression)
-app.post('/sse/gzip-response/post', (req, res) => {
+app.post('/sse/gzip-response/post/:page/:count/:interval/:datasize?', (req, res) => {
     console.log('GZIP Response POST Test:')
     console.log('  Content-Encoding:', req.headers['content-encoding'])
     console.log('  Accept-Encoding:', req.headers['accept-encoding'])
@@ -305,10 +313,18 @@ app.post('/sse/gzip-response/post', (req, res) => {
     const acceptEncoding = req.headers['accept-encoding'] || ''
     const requestBody = req.decompressedBody || JSON.stringify(req.body) || 'empty'
     
-    // Generate SSE messages including request body info
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages including request body info based on parameters
     const messages = []
-    for (let i = 1; i <= 5; i++) {
-        messages.push(`event: gzip-post-test\ndata: Message ${i}|body:${requestBody.substring(0, 50)}\n\n`)
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: gzip-post-test\ndata: ${i}-${j + 1}|body:${requestBody.substring(0, 50)}${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
     }
     const sseContent = messages.join('')
     
