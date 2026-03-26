@@ -28,7 +28,7 @@ public class EventSource {
     let customHeaders = HashMap<String, String>()
     var retryInMills: UInt16 = 30_000
     var lastMessageId: Option<String> = Option.None
-    var defaultMessageHandler = {_: Message =>}
+    var messageHandler = {_: Message =>}
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
     var socket: ?ObseredSocket = None
     var requestBody: Option<RequestBody> = Option.None
@@ -149,7 +149,7 @@ public class EventSource {
     }
 
     public func onMessage(handler: (Message) -> Unit): Unit {
-        this.defaultMessageHandler = handler
+        this.messageHandler = handler
     }
 
     public func onEvent(event: String, handler: (Message) -> Unit): Unit {
@@ -252,21 +252,19 @@ public class EventSource {
             let message = MessageBuilder.resolve(msg)
 
             // Set retry time if specified in message
-            if (message.retryInMills.isSome()) {
-                this.retryInMills = message.retryInMills.getOrThrow()
+            if (let Some(retry) <- message.retryInMills) {
+                this.retryInMills = retry
             }
 
             // Call message handler
-            if (message.eventType.isNone()) {
-                this.defaultMessageHandler(message)
-            } else {
-                let event = message.eventType.getOrThrow()
-                let handler = this.handlers.get(event)
-                if (handler.isNone()) {
-                    this.defaultMessageHandler(message)
+            if (let Some(eventType) <- message.eventType) {
+                if (let Some(handler) <- this.handlers.get(eventType)) {
+                    handler(message)
                 } else {
-                    handler.getOrThrow()(message)
+                    this.messageHandler(message)
                 }
+            } else {
+                this.messageHandler(message)
             }
 
             if (message.msgId.isSome()) {
