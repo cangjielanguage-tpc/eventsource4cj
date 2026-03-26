@@ -3,8 +3,6 @@
 ### 介绍
 该库是基于 eventsource4cj 库封装的 ArkTS 互操作接口库，提供符合 Server-Sent Events (SSE) 协议的客户端实现。支持 GET/POST 请求、自定义请求头、请求体压缩（GZIP/Brotli）、响应解压缩等功能，可从 ArkTS/ETS 环境直接调用。
 
-### 1 EventSource 客户端
-
 前置条件：NA
 
 场景：
@@ -17,9 +15,9 @@
 
 可靠性：NA
 
-#### 1.1 构造函数
+### 1. 构造函数
 
-##### 1.1.1 主要接口
+#### 1.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -48,7 +46,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.1.2 示例
+#### 1.2 示例
 
 代码如下：
 
@@ -67,9 +65,9 @@ let bytes = encoder.encode("test data")
 let esBytes = new EventSource("http://192.168.8.8:9000/sse/post/range/1/5/1000", bytes.buffer)
 ```
 
-#### 1.2 请求体设置
+### 2. 请求体设置
 
-##### 1.2.1 主要接口
+#### 2.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -94,7 +92,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.2.2 示例
+#### 2.2 示例
 
 代码如下：
 
@@ -114,9 +112,9 @@ es.setBody(encoder.encode("test data").buffer)
 es.clearBody()
 ```
 
-#### 1.3 请求体压缩设置
+### 3. 请求体压缩设置
 
-##### 1.3.1 主要接口
+#### 3.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -136,7 +134,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.3.2 示例
+#### 3.2 示例
 
 代码如下：
 
@@ -152,9 +150,9 @@ es.setRequestBodyCompressType(2)
 let compressType = es.getRequestBodyCompressType() // 返回 2
 ```
 
-#### 1.4 响应压缩设置
+### 4. 响应压缩设置
 
-##### 1.4.1 主要接口
+#### 4.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -174,7 +172,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.4.2 示例
+#### 4.2 示例
 
 代码如下：
 
@@ -193,9 +191,9 @@ es.setAcceptCompressType(3)
 let acceptType = es.getAcceptCompressType()
 ```
 
-#### 1.5 自定义请求头设置
+### 5. 自定义请求头设置
 
-##### 1.5.1 主要接口
+#### 5.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -228,7 +226,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.5.2 示例
+#### 5.2 示例
 
 代码如下：
 
@@ -255,9 +253,9 @@ es.removeHeader("X-Custom-1")
 es.clearHeaders()
 ```
 
-#### 1.6 事件处理器设置
+### 6. 事件处理器设置
 
-##### 1.6.1 主要接口
+#### 6.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -285,7 +283,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.6.2 示例
+#### 6.2 示例
 
 代码如下：
 
@@ -311,9 +309,9 @@ es.setExceptionHandler((exception: string, buffer: ArrayBuffer) => {
 })
 ```
 
-#### 1.7 订阅连接
+### 7. 订阅连接
 
-##### 1.7.1 主要接口
+#### 7.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -326,7 +324,7 @@ export declare class EventSource {
 }
 ```
 
-##### 1.7.2 示例
+#### 7.2 示例
 
 代码如下：
 
@@ -349,9 +347,9 @@ es.onMessage((msg: Message) => {
 es.subscribe()
 ```
 
-#### 1.8 Message 消息对象
+### 8. Message 消息对象
 
-##### 1.8.1 主要接口
+#### 8.1 主要接口
 
 ```typescript
 export declare interface Message {
@@ -378,7 +376,7 @@ export declare interface Message {
 }
 ```
 
-##### 1.8.2 示例
+#### 8.2 示例
 
 代码如下：
 
@@ -418,8 +416,7 @@ function handleMessage(msg: Message): void {
 }
 ```
 
-#### 1.9 完整示例
-
+### 9. 完整示例
 以下示例演示在 ETS 页面中使用 Brotli 压缩请求体并携带自定义请求头的 POST 请求：
 
 ```typescript
@@ -487,27 +484,4 @@ struct SseTestPage {
 Brotli msg 1: 5-1|body:{"query":"secure brotli data","clientType":"arkts"}
 Brotli msg 2: 5-2|body:{"query":"secure brotli data","clientType":"arkts"}
 ...
-```
-
-#### 1.10 使用 Record 类型批量设置请求头
-
-```typescript
-import { EventSource } from 'libsse'
-
-let es = new EventSource("http://192.168.8.8:9000/sse/secure/range/1/5/1000")
-
-// 使用 Record 类型批量设置请求头
-let headers: Record<string, string> = {
-    "X-Auth-Token": "token-12345",
-    "X-Client-Id": "client-001",
-    "Content-Type": "application/json",
-    "X-Api-Key": "valid-api-key-12345"
-}
-es.setHeaders(headers)
-
-es.onMessage((msg) => {
-    console.log(`Message: ${msg.data}`)
-})
-
-es.subscribe()
 ```
