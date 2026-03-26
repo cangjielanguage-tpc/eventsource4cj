@@ -31,6 +31,8 @@ public class EventSource {
     var requestBodyBytes: Option<Array<UInt8>> = Option.None
     var enableGzip: Bool = false
     var compressRequestBody: Bool = false
+    var enableBrotli: Bool = false
+    var compressRequestBodyWithBrotli: Bool = false
     let TcpSocketConnector = {
         sa: SocketAddress =>
             var tcpSocket = TcpSocket(sa)
@@ -121,6 +123,25 @@ public class EventSource {
         return this.compressRequestBody
     }
 
+    public func setEnableBrotli(enable: Bool): Unit {
+        this.enableBrotli = enable
+    }
+
+    public func setCompressRequestBodyWithBrotli(compress: Bool): Unit {
+        this.compressRequestBodyWithBrotli = compress
+        if (compress) {
+            this.enableBrotli = true
+        }
+    }
+
+    public func isBrotliEnabled(): Bool {
+        return this.enableBrotli
+    }
+
+    public func isRequestBodyBrotliCompressionEnabled(): Bool {
+        return this.compressRequestBodyWithBrotli
+    }
+
     public func setHeader(name: String, value: String): Unit {
         this.customHeaders.add(name, value)
     }
@@ -179,9 +200,17 @@ public class EventSource {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
 
-        // Add Accept-Encoding: gzip if enabled
+        // Build Accept-Encoding header based on enabled compression types
+        let acceptEncodings = ArrayList<String>()
         if (this.enableGzip) {
-            headers.add("Accept-Encoding", "gzip")
+            acceptEncodings.add("gzip")
+        }
+        if (this.enableBrotli) {
+            acceptEncodings.add("br")
+        }
+        if (acceptEncodings.size > 0) {
+            let encodingStr = acceptEncodings.iterator() |> collectString(delimiter: ", ")
+            headers.add("Accept-Encoding", encodingStr)
         }
 
         // Add custom headers
@@ -196,8 +225,11 @@ public class EventSource {
             var body = this.requestBody.getOrThrow()
             var bodyBytes = body.toArray()
 
-            // Compress request body if enabled
-            if (this.compressRequestBody) {
+            // Compress request body if enabled (Brotli takes precedence over GZIP)
+            if (this.compressRequestBodyWithBrotli) {
+                bodyBytes = BrotliUtil.compress(bodyBytes)
+                headers.add("Content-Encoding", "br")
+            } else if (this.compressRequestBody) {
                 bodyBytes = GzipUtil.compress(bodyBytes)
                 headers.add("Content-Encoding", "gzip")
             }
@@ -207,8 +239,11 @@ public class EventSource {
             // POST request with Array<UInt8> body
             var body = this.requestBodyBytes.getOrThrow()
 
-            // Compress request body if enabled
-            if (this.compressRequestBody) {
+            // Compress request body if enabled (Brotli takes precedence over GZIP)
+            if (this.compressRequestBodyWithBrotli) {
+                body = BrotliUtil.compress(body)
+                headers.add("Content-Encoding", "br")
+            } else if (this.compressRequestBody) {
                 body = GzipUtil.compress(body)
                 headers.add("Content-Encoding", "gzip")
             }
@@ -226,9 +261,15 @@ public class EventSource {
                     head[1].iterator().any({v => v.toAsciiLower() == "gzip"})
         })
 
+        // Check for Brotli encoded response
+        let isBrotliResponse = rsp.headers.iterator().any({
+            head => head[0].toAsciiLower() == "content-encoding" &&
+                    head[1].iterator().any({v => v.toAsciiLower() == "br"})
+        })
+
         let isEventStream = rsp.headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-type" && head[1].iterator().at(0).getOrThrow().toAsciiLower() ==
-                "text/event-stream"
+            head => head[0].toAsciiLower() == "content-type" &&
+                head[1].iterator().at(0).getOrThrow().toAsciiLower().startsWith("text/event-stream")
         })
         if (!isEventStream) {
             let a = rsp.headers.iterator() |> map(
@@ -243,9 +284,75 @@ public class EventSource {
         let messageaHolder = ArrayList<UInt8>()
         let buffer = Array<UInt8>(bufferSize, {_ => 0})
 
-        // For GZIP response, we need to buffer and decompress
-        // Note: SSE streams are typically not GZIP compressed due to streaming nature
+        // For compressed response, we need to buffer and decompress
+        // Note: SSE streams are typically not compressed due to streaming nature
         // This implementation handles both cases
+        if (isBrotliResponse) {
+            // Buffer the entire response for Brotli decompression
+            let brotliBuffer = ArrayList<UInt8>()
+            while (true) {
+                var len = stream.read(buffer)
+                if (len == 0) {
+                    break
+                }
+                for (byte in buffer[0..len]) {
+                    brotliBuffer.add(byte)
+                }
+            }
+
+            // Decompress Brotli data
+            let decompressed = BrotliUtil.decompress(brotliBuffer.toArray())
+
+            // Process decompressed data
+            for (byte in decompressed) {
+                if (byte != nextLine) {
+                    messageaHolder.add(byte)
+                    continue
+                }
+
+                let lastByte = messageaHolder.get(messageaHolder.size - 1)
+
+                if (lastByte.isNone() || lastByte != nextLine) {
+                    messageaHolder.add(byte)
+                    continue
+                }
+
+                try {
+                    // Complete message cached
+                    messageaHolder.add(byte)
+                    let msg = messageaHolder.toArray()
+                    let message = MessageBuilder.resolve(msg)
+
+                    // Set retry time if specified in message
+                    if (message.retryInMills.isSome()) {
+                        this.retryInMills = message.retryInMills.getOrThrow()
+                    }
+
+                    // Call message handler
+                    if (message.eventType.isNone()) {
+                        this.defaultMessageHandler(message)
+                    } else {
+                        let event = message.eventType.getOrThrow()
+                        let handler = this.handlers.get(event)
+                        if (handler.isNone()) {
+                            this.defaultMessageHandler(message)
+                        } else {
+                            handler.getOrThrow()(message)
+                        }
+                    }
+
+                    if (message.msgId.isSome()) {
+                        this.lastMessageId = message.msgId
+                    }
+                } catch (e: Exception) {
+                    exceptionHandler(e, buffer)
+                } finally {
+                    messageaHolder.clear()
+                }
+            }
+            return 0
+        }
+
         if (isGzipResponse) {
             // Buffer the entire response for GZIP decompression
             let gzipBuffer = ArrayList<UInt8>()

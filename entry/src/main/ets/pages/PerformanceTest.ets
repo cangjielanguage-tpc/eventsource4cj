@@ -11,6 +11,7 @@ export struct PerformanceTest {
   build() {
     Scroll() {
       Flex({ direction: FlexDirection.Column }) {
+        Text("Basic Test:")
         Text("Simulate tiny data scenario. Data: 0 bytes.")
           .fontSize(15)
         this.buildRow(1, 100, 100, 0)

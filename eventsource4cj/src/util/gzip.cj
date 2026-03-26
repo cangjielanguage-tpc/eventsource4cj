@@ -7,6 +7,8 @@ package eventsource4cj.util
 import stdx.compress.zlib.*
 import std.collection.ArrayList
 import std.io.*
+import brotli4cj.*
+import std.io.ByteBuffer
 
 public class GzipUtil {
     // GZIP magic number for detection
@@ -147,5 +149,86 @@ class MemoryStream <: InputStream & OutputStream {
     
     public func size(): Int64 {
         return buffer.size
+    }
+}
+
+/**
+ * Brotli Compression/Decompression Utility
+ * Uses brotli4cj library for Brotli support
+ */
+public class BrotliUtil {
+    /// Compress data using Brotli format
+    public static func compress(data: Array<UInt8>): Array<UInt8> {
+        if (data.size == 0) {
+            return []
+        }
+        return Encoder.compress(data)
+    }
+    
+    /// Compress data with quality parameter
+    /// @param data Data to compress
+    /// @param quality Compression quality (0-11, default 4)
+    public static func compress(data: Array<UInt8>, quality: Int64): Array<UInt8> {
+        if (data.size == 0) {
+            return []
+        }
+        let params = Encoder_Parameters()
+        params.setQuality(quality)
+        return Encoder.compress(data, params)
+    }
+    
+    /// Decompress Brotli data
+    public static func decompress(data: Array<UInt8>): Array<UInt8> {
+        if (data.size == 0) {
+            return []
+        }
+        
+        let input = ByteBuffer(data)
+        let brotliInput = BrotliInputStream(input)
+        
+        let result = ArrayList<UInt8>()
+        let buffer = Array<UInt8>(8192, {_ => 0})
+        
+        while (true) {
+            let len = brotliInput.read(buffer, 0, Int32(buffer.size))
+            if (len <= 0) {
+                break
+            }
+            for (i in 0..Int64(len)) {
+                result.add(buffer[i])
+            }
+        }
+        
+        return result.toArray()
+    }
+    
+    /// Check if data might be Brotli compressed
+    /// Brotli doesn't have a fixed magic number, but we can check for common patterns
+    /// The first byte usually has specific bit patterns
+    public static func isBrotli(data: Array<UInt8>): Bool {
+        if (data.size < 2) {
+            return false
+        }
+        // Brotli stream starts with WBITS (window bits) encoded in first byte
+        // Common patterns: 0x8b, 0x0b, etc. depending on window size
+        // For detection, we check if it's NOT gzip (avoid confusion)
+        if (GzipUtil.isGzip(data)) {
+            return false
+        }
+        // Brotli compressed data typically starts with certain patterns
+        // This is a heuristic check - actual detection requires trying to decompress
+        return data.size > 0
+    }
+    
+    /// Compress string to Brotli bytes
+    public static func compressString(str: String): Array<UInt8> {
+        let bytes = str.toArray()
+        return compress(bytes)
+    }
+    
+    /// Decompress Brotli bytes to string
+    public static func decompressToString(data: Array<UInt8>): String {
+        let bytes = decompress(data)
+        return String.fromUtf8(bytes)
     }
 }

@@ -34,7 +34,7 @@ struct Index {
           })
         })
         .margin({top: 3, bottom: 3})
-      Button("Gzip Request and Response Test")
+      Button("Request & Response (De)Compress Test")
         .fontSize($r('app.float.page_text_font_size'))
         .width('80%')
         .onClick(async () => {

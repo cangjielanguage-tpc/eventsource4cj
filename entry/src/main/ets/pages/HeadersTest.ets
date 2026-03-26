@@ -7,8 +7,8 @@ export struct HeadersTest {
   build() {
     Scroll() {
       Flex({ direction: FlexDirection.Column }) {
-        Text("Headers Test:")
-        Text("SSE connection with single header setting.")
+        Text("Get Headers Test:")
+        Text("SSE connection with custom headers (single header setting).")
           .fontSize(15)
         this.buildHeaderRow(1, 50, 100, 1)
         this.buildHeaderRow(1, 100, 100, 1)
@@ -22,7 +22,7 @@ export struct HeadersTest {
         this.buildHeadersRow(1, 500, 100, 1)
         this.buildHeadersRow(1, 1000, 100, 1)
         this.buildHeadersRow(1, 5000, 100, 1)
-        Text("Demonstrate the headers management function.")
+        Text("Demonstrate headers management functionality.")
           .fontSize(15)
         this.buildHeadersManagementRow(1, 50, 100, 1)
         this.buildHeadersManagementRow(1, 100, 100, 1)

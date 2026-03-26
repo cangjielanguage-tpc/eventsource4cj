@@ -40,6 +40,8 @@ function gzipBodyParser(req, res, next) {
                 }
                 req.body = decompressed
                 req.decompressedBody = decompressed.toString('utf8')
+                req._body = true // Mark body as already parsed to skip body-parser
+                delete req.headers['content-encoding'] // Remove header to prevent body-parser from checking it
                 next()
             })
         })
@@ -48,13 +50,51 @@ function gzipBodyParser(req, res, next) {
     }
 }
 
+// Middleware to decompress Brotli request body
+function brotliBodyParser(req, res, next) {
+    const contentEncoding = req.headers['content-encoding']
+    if (contentEncoding === 'br') {
+        let chunks = []
+        req.on('data', chunk => chunks.push(chunk))
+        req.on('end', () => {
+            const buffer = Buffer.concat(chunks)
+            zlib.brotliDecompress(buffer, (err, decompressed) => {
+                if (err) {
+                    console.error('Brotli decompression error:', err)
+                    res.status(400).json({ error: 'Invalid Brotli data' })
+                    return
+                }
+                req.body = decompressed
+                req.decompressedBody = decompressed.toString('utf8')
+                req._body = true // Mark body as already parsed to skip body-parser
+                delete req.headers['content-encoding'] // Remove header to prevent body-parser from checking it
+                next()
+            })
+        })
+    } else {
+        next()
+    }
+}
+
+// Combined compression body parser
+function compressionBodyParser(req, res, next) {
+    const contentEncoding = req.headers['content-encoding']
+    if (contentEncoding === 'gzip') {
+        gzipBodyParser(req, res, next)
+    } else if (contentEncoding === 'br') {
+        brotliBodyParser(req, res, next)
+    } else {
+        next()
+    }
+}
+
 const app = express()
 app.use(serveStatic(__dirname))
 app.use(compression()) // Enable response compression
+app.use(compressionBodyParser) // Handle GZIP and Brotli request bodies (must be before express.json())
 app.use(express.json())
 app.use(express.text())
 app.use(express.raw({ type: 'application/octet-stream' }))
-app.use(gzipBodyParser) // Handle GZIP request bodies
 
 // POST SSE endpoint with body support
 app.post('/sse/post/range/:page/:count/:interval/:datasize?', (req, res) => {
@@ -341,6 +381,102 @@ app.post('/sse/gzip-response/post/:page/:count/:interval/:datasize?', (req, res)
             res.setHeader('Access-Control-Allow-Origin', '*')
             res.send(compressed)
             console.log('  Sent GZIP compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
+// ============== Brotli SSE Endpoints ==============
+
+// Brotli compressed SSE response endpoint (for testing response decompression)
+// This endpoint returns a complete Brotli compressed SSE response
+app.get('/sse/brotli-response/test/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('Brotli Response Test:')
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages based on parameters
+    const messages = []
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: brotli-test\ndata: ${i}-${j + 1} from Brotli compressed response${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('br')) {
+        // Return Brotli compressed response
+        zlib.brotliCompress(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('Brotli compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'br')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent Brotli compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
+// Brotli compressed SSE POST endpoint (for testing both request and response compression)
+app.post('/sse/brotli-response/post/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('Brotli Response POST Test:')
+    console.log('  Content-Encoding:', req.headers['content-encoding'])
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    console.log('  Decompressed Body:', req.decompressedBody || 'N/A')
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    const requestBody = req.decompressedBody || JSON.stringify(req.body) || 'empty'
+    
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages including request body info based on parameters
+    const messages = []
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: brotli-post-test\ndata: ${i}-${j + 1}|body:${requestBody.substring(0, 50)}${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('br')) {
+        // Return Brotli compressed response
+        zlib.brotliCompress(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('Brotli compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'br')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent Brotli compressed response, size:', compressed.length)
         })
     } else {
         // Return uncompressed response

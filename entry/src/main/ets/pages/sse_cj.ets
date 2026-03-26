@@ -453,3 +453,160 @@ export function sse_cj_gzip_full(
     view['message'] = `Error: ${e.message}`
   }
 }
+
+/**
+ * SSE connection with Brotli response decompression
+ * Tests the client's ability to decompress Brotli encoded responses
+ */
+export function sse_cj_brotli_response(
+  view: object,
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
+): void {
+  try {
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use the Brotli response test endpoint with path parameters
+    let testUrl = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse Brotli response decompression done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    let es = new EventSource(testUrl)
+
+    // Enable Brotli to request compressed response and handle decompression
+    es.setEnableBrotli(true)
+    hilog.info(0, 'mdebug', `Brotli response decompression enabled: ${es.isBrotliEnabled()}`)
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `Brotli Response: ${msg.data}`)
+      if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}
+
+/**
+ * SSE POST with both Brotli request body compression and response decompression
+ */
+export function sse_cj_brotli_full(
+  view: object,
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
+): void {
+  try {
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use the Brotli response POST endpoint with path parameters
+    let testUrl = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse Brotli full (request + response) done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    // Create request body
+    let requestBody = JSON.stringify({
+      query: 'brotli full test',
+      timestamp: new Date().toISOString(),
+      clientType: 'arkts-brotli-full'
+    })
+
+    let es = new EventSource(testUrl, requestBody)
+
+    // Enable both request body compression and response decompression
+    es.setCompressRequestBodyWithBrotli(true)  // This also enables Brotli response handling
+    hilog.info(0, 'mdebug', `Brotli full mode enabled: ${es.isBrotliEnabled()}, compress: ${es.isRequestBodyBrotliCompressionEnabled()}`)
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `Brotli Full: ${msg.data}`)
+      if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}
+
+/**
+ * SSE POST with Brotli request compression and custom headers
+ */
+export function sse_cj_brotli_with_headers(
+  view: object,
+  url: string,
+  page: number,
+  range: number,
+  interval?: number,
+  datasize?: number
+): void {
+  try {
+    interval = interval ?? 100
+    datasize = datasize ?? 0
+    // Use the Brotli response POST endpoint with path parameters
+    let testUrl = `${url}/${page}/${range}/${interval}/${datasize}`
+    let max = page * range
+    let count = 0
+    let t0 = systemDateTime.getTime(true)
+    let finish = () => {
+      let time = systemDateTime.getTime(true) - t0
+      let msg = `cj sse Brotli with headers done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+
+    // Create request body
+    let requestBody = JSON.stringify({
+      query: 'secure brotli data',
+      timestamp: new Date().toISOString(),
+      clientType: 'arkts-brotli-secure'
+    })
+
+    let es = new EventSource(testUrl, requestBody)
+
+    // Enable Brotli compression
+    es.setCompressRequestBodyWithBrotli(true)
+
+    // Set custom headers
+    es.setHeader('X-Auth-Token', 'my-secret-token-12345')
+    es.setHeader('X-Client-Id', 'arkts-brotli-client')
+    es.setHeader('Content-Type', 'application/json')
+
+    es.onMessage((msg) => {
+      count++
+      hilog.info(0, 'mdebug', `Brotli with headers: ${msg.data}`)
+      if (count >= max) {
+        finish()
+      }
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+    view['message'] = `Error: ${e.message}`
+  }
+}

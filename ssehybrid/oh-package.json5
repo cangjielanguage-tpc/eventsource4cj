@@ -6,6 +6,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "libsse.so": "file:src/main/cangjie/types/libsse"
+    "libsse.so": "file:src/main/cangjie/types/libsse",
+    "brotli": "file:../brotli"
   }
 }

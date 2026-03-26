@@ -1,4 +1,5 @@
 [dependencies]
+  brotli4cj = { path = "../brotli" }
 
 [package]
   cjc-version = "1.0.4"

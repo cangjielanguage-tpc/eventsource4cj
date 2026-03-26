@@ -39,6 +39,14 @@ export declare class EventSource {
 
   isRequestBodyCompressionEnabled(): boolean
 
+  setEnableBrotli(enable: boolean): void
+
+  setCompressRequestBodyWithBrotli(compress: boolean): void
+
+  isBrotliEnabled(): boolean
+
+  isRequestBodyBrotliCompressionEnabled(): boolean
+
   constructor(url: string)
 
   constructor(url: string, body: string)

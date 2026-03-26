@@ -1,7 +1,9 @@
-const phoneIp = "192.168.8.5"
+const phoneIp = "192.168.8.8"
 export const SseUrl = `http://${phoneIp}:9000/sse/range`;
 export const SseUrlSecure = `http://${phoneIp}:9000/sse/secure/range`;
 export const SseUrlPost = `http://${phoneIp}:9000/sse/post/range`;
 export const SseUrlPostSecure = `http://${phoneIp}:9000/sse/post/secure/range`;
-export const SseUrlGzip = `http://${phoneIp}:9000//sse/gzip-response/test`;
-export const SseUrlGzipFull = `http://${phoneIp}:9000//sse/gzip-response/post`;
+export const SseUrlGzip = `http://${phoneIp}:9000/sse/gzip-response/test`;
+export const SseUrlGzipFull = `http://${phoneIp}:9000/sse/gzip-response/post`;
+export const SseUrlBr = `http://${phoneIp}:9000/sse/brotli-response/test`;
+export const SseUrlBrFull = `http://${phoneIp}:9000/sse/brotli-response/post`;
