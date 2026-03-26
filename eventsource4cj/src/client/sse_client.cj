@@ -15,8 +15,12 @@ import std.collection.*
 import stdx.net.http.*
 import std.net.*
 import ohos.hilog.Hilog
+import std.io.InputStream
 
 public class EventSource {
+    static const DEFAULT_BUFFER_SIZE = 1024 * 8
+    static let DEFAULT_TIME_OUT = 365 * 100 * Duration.day
+    static let NEXT_LINE_FLAG = UInt8(b'\n')
     let client: Client
     let url: String
     let bufferSize: Int64
@@ -27,12 +31,9 @@ public class EventSource {
     var defaultMessageHandler = {_: Message =>}
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
     var socket: ?ObseredSocket = None
-    var requestBody: Option<String> = Option.None
-    var requestBodyBytes: Option<Array<UInt8>> = Option.None
-    var enableGzip: Bool = false
-    var compressRequestBody: Bool = false
-    var enableBrotli: Bool = false
-    var compressRequestBodyWithBrotli: Bool = false
+    var requestBody: Option<RequestBody> = Option.None
+    var requestBodyCompressType: Option<CompressType> = Option.None
+    var acceptCompressTypes: Array<CompressType> = []
     let TcpSocketConnector = {
         sa: SocketAddress =>
             var tcpSocket = TcpSocket(sa)
@@ -43,103 +44,86 @@ public class EventSource {
             socket.connect()
             return socket
     }
-    public init(url: String) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
-        this.client = client
-        this.url = url
-        this.bufferSize = 1024 * 8
-    }
 
-    public init(url: String, bufferSize: Int64) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+    public init(url: String, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_TIME_OUT).build()
         this.client = client
         this.url = url
         this.bufferSize = bufferSize
     }
 
-    public init(url: String, body: String) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
-        this.client = client
-        this.url = url
-        this.bufferSize = 1024 * 8
-        this.requestBody = Option.Some(body)
-    }
-
-    public init(url: String, body: String, bufferSize: Int64) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+    public init(url: String, body: String, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_TIME_OUT).build()
         this.client = client
         this.url = url
         this.bufferSize = bufferSize
-        this.requestBody = Option.Some(body)
+        this.requestBody = StringBody(body)
     }
 
-    public init(url: String, body: Array<UInt8>) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
-        this.client = client
-        this.url = url
-        this.bufferSize = 1024 * 8
-        this.requestBodyBytes = Option.Some(body)
-    }
-
-    public init(url: String, body: Array<UInt8>, bufferSize: Int64) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(365 * 100 * Duration.day).build()
+    public init(url: String, body: Array<UInt8>, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
+        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_TIME_OUT).build()
         this.client = client
         this.url = url
         this.bufferSize = bufferSize
-        this.requestBodyBytes = Option.Some(body)
+        this.requestBody = StreamBody(body)
     }
 
     public func setBody(body: String): Unit {
-        this.requestBody = Option.Some(body)
-        this.requestBodyBytes = Option.None
+        this.requestBody = StringBody(body)
     }
 
     public func setBody(body: Array<UInt8>): Unit {
-        this.requestBodyBytes = Option.Some(body)
-        this.requestBody = Option.None
+        this.requestBody = StreamBody(body)
     }
 
     public func clearBody(): Unit {
         this.requestBody = Option.None
-        this.requestBodyBytes = Option.None
     }
 
-    public func setEnableGzip(enable: Bool): Unit {
-        this.enableGzip = enable
-    }
-
-    public func setCompressRequestBody(compress: Bool): Unit {
-        this.compressRequestBody = compress
-        if (compress) {
-            this.enableGzip = true
+    // 0: raw data, 1: gzip compressed data, 2: brotli compressed data
+    public func setRequestCompressType(compress: Int64): Unit {
+        if (compress == 1) {
+            this.requestBodyCompressType = Gzip
+        } else if (compress == 2) {
+            this.requestBodyCompressType = Brotli
+        } else {
+            this.requestBodyCompressType = Option.None
         }
     }
 
-    public func isGzipEnabled(): Bool {
-        return this.enableGzip
-    }
-
-    public func isRequestBodyCompressionEnabled(): Bool {
-        return this.compressRequestBody
-    }
-
-    public func setEnableBrotli(enable: Bool): Unit {
-        this.enableBrotli = enable
-    }
-
-    public func setCompressRequestBodyWithBrotli(compress: Bool): Unit {
-        this.compressRequestBodyWithBrotli = compress
-        if (compress) {
-            this.enableBrotli = true
+    public func getRequestCompressType(): Int64 {
+        return match (this.requestBodyCompressType) {
+            case Some(compress) =>
+                match (compress) {
+                    case Gzip => 1
+                    case Brotli => 2
+                }
+            case None => 0
         }
     }
 
-    public func isBrotliEnabled(): Bool {
-        return this.enableBrotli
+    // 0: no "Accept-Encoding", 1: "Accept-Encoding: gzip", 2: "Accept-Encoding: br", 3: "Accept-Encoding: gzip, br"
+    public func setAcceptCompressType(compress: Int64): Unit {
+        if (compress == 1) {
+            this.acceptCompressTypes = [Gzip]
+        } else if (compress == 2) {
+            this.acceptCompressTypes = [Brotli]
+        } else if (compress == 3 ){
+            this.acceptCompressTypes = [Gzip, Brotli]
+        } else {
+            this.acceptCompressTypes = []
+        }
     }
 
-    public func isRequestBodyBrotliCompressionEnabled(): Bool {
-        return this.compressRequestBodyWithBrotli
+    public func getAcceptCompressType(): Int64 {
+        var compress = 0
+        for (item in this.acceptCompressTypes) {
+            compress += match (item) {
+                case Gzip => 1
+                case Brotli => 2
+            }
+        }
+        return compress
     }
 
     public func setHeader(name: String, value: String): Unit {
@@ -193,7 +177,7 @@ public class EventSource {
         }
     }
 
-    private func connect(lastMessageId: Option<String>): Int {
+    private func getHeaders(lastMessageId: Option<String>): HttpHeaders {
         let headers = HttpHeaders()
         headers.add("Accept", "text/event-stream")
         if (lastMessageId.isSome()) {
@@ -201,13 +185,7 @@ public class EventSource {
         }
 
         // Build Accept-Encoding header based on enabled compression types
-        let acceptEncodings = ArrayList<String>()
-        if (this.enableGzip) {
-            acceptEncodings.add("gzip")
-        }
-        if (this.enableBrotli) {
-            acceptEncodings.add("br")
-        }
+        let acceptEncodings = this.acceptCompressTypes.map { it => it.name }
         if (acceptEncodings.size > 0) {
             let encodingStr = acceptEncodings.iterator() |> collectString(delimiter: ", ")
             headers.add("Accept-Encoding", encodingStr)
@@ -218,55 +196,13 @@ public class EventSource {
             headers.add(name, value)
         }
 
-        let endpoint = url
-        let req: HttpRequest
-        if (this.requestBody.isSome()) {
-            // POST request with String body
-            var body = this.requestBody.getOrThrow()
-            var bodyBytes = body.toArray()
-
-            // Compress request body if enabled (Brotli takes precedence over GZIP)
-            if (this.compressRequestBodyWithBrotli) {
-                bodyBytes = BrotliUtil.compress(bodyBytes)
-                headers.add("Content-Encoding", "br")
-            } else if (this.compressRequestBody) {
-                bodyBytes = GzipUtil.compress(bodyBytes)
-                headers.add("Content-Encoding", "gzip")
-            }
-
-            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(bodyBytes).post().build()
-        } else if (this.requestBodyBytes.isSome()) {
-            // POST request with Array<UInt8> body
-            var body = this.requestBodyBytes.getOrThrow()
-
-            // Compress request body if enabled (Brotli takes precedence over GZIP)
-            if (this.compressRequestBodyWithBrotli) {
-                body = BrotliUtil.compress(body)
-                headers.add("Content-Encoding", "br")
-            } else if (this.compressRequestBody) {
-                body = GzipUtil.compress(body)
-                headers.add("Content-Encoding", "gzip")
-            }
-
-            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(body).post().build()
-        } else {
-            // GET request
-            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
+        if (this.requestBody.isSome() && let Some(compressType) <- this.requestBodyCompressType) {
+            headers.add("Content-Encoding", compressType.name)
         }
-        let rsp = client.send(req)
+        return headers
+    }
 
-        // Check for GZIP encoded response
-        let isGzipResponse = rsp.headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-encoding" &&
-                    head[1].iterator().any({v => v.toAsciiLower() == "gzip"})
-        })
-
-        // Check for Brotli encoded response
-        let isBrotliResponse = rsp.headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-encoding" &&
-                    head[1].iterator().any({v => v.toAsciiLower() == "br"})
-        })
-
+    private func checkContentType(rsp: HttpResponse): Unit {
         let isEventStream = rsp.headers.iterator().any({
             head => head[0].toAsciiLower() == "content-type" &&
                 head[1].iterator().at(0).getOrThrow().toAsciiLower().startsWith("text/event-stream")
@@ -277,204 +213,181 @@ public class EventSource {
                 collectString(delimiter: "\n")
             throw Exception("Server response type error: Content-Type is incorrect! ${rsp.toString()}")
         }
+    }
 
+    private func getResponseCompressType(headers: HttpHeaders): Option<CompressType> {
+        return if (headers.iterator().any({
+            head => head[0].toAsciiLower() == "content-encoding" &&
+                    head[1].iterator().any({v => v.toAsciiLower() == "gzip"})
+        })) {
+            Gzip
+        } else if (headers.iterator().any({
+            head => head[0].toAsciiLower() == "content-encoding" &&
+                    head[1].iterator().any({v => v.toAsciiLower() == "br"})
+        })) {
+            Brotli
+        } else {
+            None
+        }
+    }
+
+    private func readStreamToEnd(stream: InputStream): Array<UInt8> {
+        let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
+        let compressBuffer = ArrayList<UInt8>()
+        while (true) {
+            var len = stream.read(buffer)
+            if (len == 0) {
+                break
+            }
+            for (byte in buffer[0..len]) {
+                compressBuffer.add(byte)
+            }
+        }
+        return compressBuffer.toArray()
+    }
+
+    private func handleMessage(messageHolder: ArrayList<UInt8>): Unit {
+        try {
+            let msg = messageHolder.toArray()
+            let message = MessageBuilder.resolve(msg)
+
+            // Set retry time if specified in message
+            if (message.retryInMills.isSome()) {
+                this.retryInMills = message.retryInMills.getOrThrow()
+            }
+
+            // Call message handler
+            if (message.eventType.isNone()) {
+                this.defaultMessageHandler(message)
+            } else {
+                let event = message.eventType.getOrThrow()
+                let handler = this.handlers.get(event)
+                if (handler.isNone()) {
+                    this.defaultMessageHandler(message)
+                } else {
+                    handler.getOrThrow()(message)
+                }
+            }
+
+            if (message.msgId.isSome()) {
+                this.lastMessageId = message.msgId
+            }
+        } catch (e: Exception) {
+            exceptionHandler(e, messageHolder.toArray())
+        } finally {
+            messageHolder.clear()
+        }
+
+    }
+    private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
         // Process response stream
-        let nextLine = UInt8(b'\n')
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>()
-        let buffer = Array<UInt8>(bufferSize, {_ => 0})
+        // Buffer the entire response for decompression
+        let compressBuffer = readStreamToEnd(stream)
 
-        // For compressed response, we need to buffer and decompress
-        // Note: SSE streams are typically not compressed due to streaming nature
-        // This implementation handles both cases
-        if (isBrotliResponse) {
-            // Buffer the entire response for Brotli decompression
-            let brotliBuffer = ArrayList<UInt8>()
-            while (true) {
-                var len = stream.read(buffer)
-                if (len == 0) {
-                    break
-                }
-                for (byte in buffer[0..len]) {
-                    brotliBuffer.add(byte)
-                }
-            }
-
-            // Decompress Brotli data
-            let decompressed = BrotliUtil.decompress(brotliBuffer.toArray())
-
-            // Process decompressed data
-            for (byte in decompressed) {
-                if (byte != nextLine) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                let lastByte = messageaHolder.get(messageaHolder.size - 1)
-
-                if (lastByte.isNone() || lastByte != nextLine) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                try {
-                    // Complete message cached
-                    messageaHolder.add(byte)
-                    let msg = messageaHolder.toArray()
-                    let message = MessageBuilder.resolve(msg)
-
-                    // Set retry time if specified in message
-                    if (message.retryInMills.isSome()) {
-                        this.retryInMills = message.retryInMills.getOrThrow()
-                    }
-
-                    // Call message handler
-                    if (message.eventType.isNone()) {
-                        this.defaultMessageHandler(message)
-                    } else {
-                        let event = message.eventType.getOrThrow()
-                        let handler = this.handlers.get(event)
-                        if (handler.isNone()) {
-                            this.defaultMessageHandler(message)
-                        } else {
-                            handler.getOrThrow()(message)
-                        }
-                    }
-
-                    if (message.msgId.isSome()) {
-                        this.lastMessageId = message.msgId
-                    }
-                } catch (e: Exception) {
-                    exceptionHandler(e, buffer)
-                } finally {
-                    messageaHolder.clear()
-                }
-            }
-            return 0
+        // Decompress data
+        let decompressed = match (compressType) {
+            case Gzip => GzipUtil.decompress(compressBuffer)
+            case Brotli => BrotliUtil.decompress(compressBuffer)
         }
 
-        if (isGzipResponse) {
-            // Buffer the entire response for GZIP decompression
-            let gzipBuffer = ArrayList<UInt8>()
-            while (true) {
-                var len = stream.read(buffer)
-                if (len == 0) {
-                    break
-                }
-                for (byte in buffer[0..len]) {
-                    gzipBuffer.add(byte)
-                }
+        // Process decompressed data
+        for (byte in decompressed) {
+            if (byte != NEXT_LINE_FLAG) {
+                messageaHolder.add(byte)
+                continue
             }
 
-            // Decompress GZIP data
-            let decompressed = GzipUtil.decompress(gzipBuffer.toArray())
-
-            // Process decompressed data
-            for (byte in decompressed) {
-                if (byte != nextLine) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                let lastByte = messageaHolder.get(messageaHolder.size - 1)
-
-                if (lastByte.isNone() || lastByte != nextLine) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                try {
-                    // Complete message cached
-                    messageaHolder.add(byte)
-                    let msg = messageaHolder.toArray()
-                    let message = MessageBuilder.resolve(msg)
-
-                    // Set retry time if specified in message
-                    if (message.retryInMills.isSome()) {
-                        this.retryInMills = message.retryInMills.getOrThrow()
-                    }
-
-                    // Call message handler
-                    if (message.eventType.isNone()) {
-                        this.defaultMessageHandler(message)
-                    } else {
-                        let event = message.eventType.getOrThrow()
-                        let handler = this.handlers.get(event)
-                        if (handler.isNone()) {
-                            this.defaultMessageHandler(message)
-                        } else {
-                            handler.getOrThrow()(message)
-                        }
-                    }
-
-                    if (message.msgId.isSome()) {
-                        this.lastMessageId = message.msgId
-                    }
-                } catch (e: Exception) {
-                    exceptionHandler(e, buffer)
-                } finally {
-                    messageaHolder.clear()
-                }
+            let lastByte = messageaHolder.get(messageaHolder.size - 1)
+            if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
+                messageaHolder.add(byte)
+                continue
             }
-            return 0
+
+            // Complete message cached
+            messageaHolder.add(byte)
+            handleMessage(messageaHolder)
         }
+        return 0
+    }
 
+    private func handleNoCompressResponse(rsp: HttpResponse): Int {
         // Normal non-GZIP streaming processing
+        let stream = rsp.body
+        let messageaHolder = ArrayList<UInt8>()
+        let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
                 return 0 // Chunked stream ended, connection closed
             }
-//            log(
-//                "mdebug0:${String.fromUtf8(buffer[0..len]).replace('\r', 'Ř').replace('\n', 'Ň').replace('\t', 'Ť').replace(' ', 'ø')}")
             for (byte in buffer[0..len]) {
-                if (byte != nextLine) {
+                if (byte != NEXT_LINE_FLAG) {
                     messageaHolder.add(byte)
                     continue
                 }
 
                 let lastByte = messageaHolder.get(messageaHolder.size - 1)
 
-                if (lastByte.isNone() || lastByte != nextLine) {
+                if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
                     messageaHolder.add(byte)
                     continue
                 }
 
-                try {
-                    // Complete message cached
-                    messageaHolder.add(byte)
-                    let msg = messageaHolder.toArray()
-                    let message = MessageBuilder.resolve(msg)
-
-                    // Set retry time if specified in message
-                    if (message.retryInMills.isSome()) {
-                        this.retryInMills = message.retryInMills.getOrThrow()
-                    }
-
-                    // Call message handler
-                    if (message.eventType.isNone()) {
-                        this.defaultMessageHandler(message)
-                    } else {
-                        let event = message.eventType.getOrThrow()
-                        let handler = this.handlers.get(event)
-                        if (handler.isNone()) {
-                            this.defaultMessageHandler(message)
-                        } else {
-                            handler.getOrThrow()(message)
-                        }
-                    }
-
-                    if (message.msgId.isSome()) {
-                        this.lastMessageId = message.msgId
-                    }
-                } catch (e: Exception) {
-                    exceptionHandler(e, buffer)
-                } finally {
-                    messageaHolder.clear()
-                }
+                // Complete message cached
+                messageaHolder.add(byte)
+                handleMessage(messageaHolder)
             }
         }
         return -1
+    }
+
+    private func handleResponse(rsp: HttpResponse): Int {
+        // Check content-type, if not "text/event-stream", throw exception
+        checkContentType(rsp)
+
+        // Process response stream
+        let stream = rsp.body
+        let messageaHolder = ArrayList<UInt8>()
+        let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
+
+        // For compressed response, we need to buffer and decompress
+        // Note: SSE streams are typically not compressed due to streaming nature
+        // This implementation handles both cases
+        return if (let Some(compressType) <- getResponseCompressType(rsp.headers)) {
+            handleCompressResponse(rsp, compressType)
+        } else {
+            handleNoCompressResponse(rsp)
+        }
+    }
+
+    private func connect(lastMessageId: Option<String>): Int {
+        let headers = getHeaders(lastMessageId)
+
+        let endpoint = url
+        let req: HttpRequest
+        if (let Some(body) <- this.requestBody) {
+            // POST body
+            var bodyBytes = match (body) {
+                case StringBody(str) => str.toArray()
+                case StreamBody(buf) => buf
+            }
+            if (let Some(compressType) <- this.requestBodyCompressType) {
+                match (compressType) {
+                    case Gzip => bodyBytes = GzipUtil.compress(bodyBytes)
+                    case Brotli => bodyBytes = BrotliUtil.compress(bodyBytes)
+                }
+            }
+            // POST request
+            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(bodyBytes).post().build()
+        } else {
+            // GET request
+            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
+        }
+        let rsp = client.send(req)
+
+        return handleResponse(rsp)
     }
 }
 

@@ -384,8 +384,8 @@ export function sse_cj_gzip_response(
     let es = new EventSource(testUrl)
 
     // Enable GZIP to request compressed response and handle decompression
-    es.setEnableGzip(true)
-    hilog.info(0, 'mdebug', `GZIP response decompression enabled: ${es.isGzipEnabled()}`)
+    es.setAcceptCompressType(1)
+    hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}`)
 
     es.onMessage((msg) => {
       count++
@@ -437,8 +437,9 @@ export function sse_cj_gzip_full(
     let es = new EventSource(testUrl, requestBody)
 
     // Enable both request body compression and response decompression
-    es.setCompressRequestBody(true)  // This also enables GZIP response handling
-    hilog.info(0, 'mdebug', `GZIP full mode enabled: ${es.isGzipEnabled()}, compress: ${es.isRequestBodyCompressionEnabled()}`)
+    es.setRequestBodyCompressType(1)
+    es.setAcceptCompressType(1)
+    hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}, request compress: ${es.getRequestBodyCompressType()}`)
 
     es.onMessage((msg) => {
       count++
@@ -484,8 +485,8 @@ export function sse_cj_brotli_response(
     let es = new EventSource(testUrl)
 
     // Enable Brotli to request compressed response and handle decompression
-    es.setEnableBrotli(true)
-    hilog.info(0, 'mdebug', `Brotli response decompression enabled: ${es.isBrotliEnabled()}`)
+    es.setAcceptCompressType(2)
+    hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}`)
 
     es.onMessage((msg) => {
       count++
@@ -537,8 +538,9 @@ export function sse_cj_brotli_full(
     let es = new EventSource(testUrl, requestBody)
 
     // Enable both request body compression and response decompression
-    es.setCompressRequestBodyWithBrotli(true)  // This also enables Brotli response handling
-    hilog.info(0, 'mdebug', `Brotli full mode enabled: ${es.isBrotliEnabled()}, compress: ${es.isRequestBodyBrotliCompressionEnabled()}`)
+    es.setRequestBodyCompressType(2)
+    es.setAcceptCompressType(2)
+    hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}, request compress: ${es.getRequestBodyCompressType()}`)
 
     es.onMessage((msg) => {
       count++
@@ -590,7 +592,8 @@ export function sse_cj_brotli_with_headers(
     let es = new EventSource(testUrl, requestBody)
 
     // Enable Brotli compression
-    es.setCompressRequestBodyWithBrotli(true)
+    es.setRequestBodyCompressType(2)
+    es.setAcceptCompressType(2)
 
     // Set custom headers
     es.setHeader('X-Auth-Token', 'my-secret-token-12345')

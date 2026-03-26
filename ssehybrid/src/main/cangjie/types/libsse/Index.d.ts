@@ -31,21 +31,15 @@ export declare class EventSource {
 
   clearBody(): void
 
-  setEnableGzip(enable: boolean): void
+  // 0: raw data, 1: gzip compressed data, 2: brotli compressed data
+  setRequestBodyCompressType(compress: number): void
 
-  setCompressRequestBody(compress: boolean): void
+  getRequestBodyCompressType(): number
 
-  isGzipEnabled(): boolean
+  // 0: no "Accept-Encoding", 1: "Accept-Encoding: gzip", 2: "Accept-Encoding: br", 3: "Accept-Encoding: gzip, br"
+  setAcceptCompressType(compress: number): void
 
-  isRequestBodyCompressionEnabled(): boolean
-
-  setEnableBrotli(enable: boolean): void
-
-  setCompressRequestBodyWithBrotli(compress: boolean): void
-
-  isBrotliEnabled(): boolean
-
-  isRequestBodyBrotliCompressionEnabled(): boolean
+  getAcceptCompressType(): number
 
   constructor(url: string)
 

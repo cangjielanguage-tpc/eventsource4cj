@@ -25,14 +25,10 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 clazz.addMethod("clearHeaders", context.function(clearHeaders_ArkTS_Interop_Identifier))
                 clazz.addMethod("setBody", context.function(setBody_ArkTS_Interop_Identifier))
                 clazz.addMethod("clearBody", context.function(clearBody_ArkTS_Interop_Identifier))
-                clazz.addMethod("setEnableGzip", context.function(setEnableGzip_ArkTS_Interop_Identifier))
-                clazz.addMethod("setCompressRequestBody", context.function(setCompressRequestBody_ArkTS_Interop_Identifier))
-                clazz.addMethod("isGzipEnabled", context.function(isGzipEnabled_ArkTS_Interop_Identifier))
-                clazz.addMethod("isRequestBodyCompressionEnabled", context.function(isRequestBodyCompressionEnabled_ArkTS_Interop_Identifier))
-                clazz.addMethod("setEnableBrotli", context.function(setEnableBrotli_ArkTS_Interop_Identifier))
-                clazz.addMethod("setCompressRequestBodyWithBrotli", context.function(setCompressRequestBodyWithBrotli_ArkTS_Interop_Identifier))
-                clazz.addMethod("isBrotliEnabled", context.function(isBrotliEnabled_ArkTS_Interop_Identifier))
-                clazz.addMethod("isRequestBodyBrotliCompressionEnabled", context.function(isRequestBodyBrotliCompressionEnabled_ArkTS_Interop_Identifier))
+                clazz.addMethod("setRequestBodyCompressType", context.function(setRequestCompressType_ArkTS_Interop_Identifier))
+                clazz.addMethod("getRequestBodyCompressType", context.function(getRequestCompressType_ArkTS_Interop_Identifier))
+                clazz.addMethod("setAcceptCompressType", context.function(setAcceptCompressType_ArkTS_Interop_Identifier))
+                clazz.addMethod("getAcceptCompressType", context.function(getAcceptCompressType_ArkTS_Interop_Identifier))
                 return clazz
         }
     }
@@ -298,126 +294,66 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         return RET.toJSValue(context)
     }
 
-    public func setEnableGzip(enable: Bool): Unit {
-        cjEventSource.setEnableGzip(enable)
+    public func setRequestCompressType(compress: Int64): Unit {
+        cjEventSource.setRequestCompressType(compress)
     }
-    public static func setEnableGzip_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+    public static func setRequestCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
         JSCurrentJSContext.set(context)
-        let enable = callInfo[0].toBoolean()
-        let RET = clazz.setEnableGzip(enable)
+        let compress = Int64(callInfo[0].toNumber())
+        let RET = clazz.setRequestCompressType(compress)
         JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
-    public func setCompressRequestBody(compress: Bool): Unit {
-        cjEventSource.setCompressRequestBody(compress)
+    public func getRequestCompressType(): Int64 {
+        cjEventSource.getRequestCompressType()
     }
-    public static func setCompressRequestBody_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+    public static func getRequestCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
         JSCurrentJSContext.set(context)
-        let compress = callInfo[0].toBoolean()
-        let RET = clazz.setCompressRequestBody(compress)
+        let RET = clazz.getRequestCompressType()
         JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
-    public func isGzipEnabled(): Bool {
-        return cjEventSource.isGzipEnabled()
+    public func setAcceptCompressType(compress: Int64): Unit {
+        cjEventSource.setAcceptCompressType(compress)
     }
-    public static func isGzipEnabled_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+
+    public static func setAcceptCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
         JSCurrentJSContext.set(context)
-        let RET = clazz.isGzipEnabled()
+        let compress = Int64(callInfo[0].toNumber())
+        let RET = clazz.setAcceptCompressType(compress)
         JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
-    public func isRequestBodyCompressionEnabled(): Bool {
-        return cjEventSource.isRequestBodyCompressionEnabled()
+    public func getAcceptCompressType(): Int64 {
+        cjEventSource.getAcceptCompressType()
     }
-    public static func isRequestBodyCompressionEnabled_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+
+    public static func getAcceptCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
         JSCurrentJSContext.set(context)
-        let RET = clazz.isRequestBodyCompressionEnabled()
-        JSCurrentJSContext.unset()
-        return RET.toJSValue(context)
-    }
-
-    public func setEnableBrotli(enable: Bool): Unit {
-        cjEventSource.setEnableBrotli(enable)
-    }
-    public static func setEnableBrotli_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
-        let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject()
-        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
-        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
-
-        JSCurrentJSContext.set(context)
-        let enable = callInfo[0].toBoolean()
-        let RET = clazz.setEnableBrotli(enable)
-        JSCurrentJSContext.unset()
-        return RET.toJSValue(context)
-    }
-
-    public func setCompressRequestBodyWithBrotli(compress: Bool): Unit {
-        cjEventSource.setCompressRequestBodyWithBrotli(compress)
-    }
-    public static func setCompressRequestBodyWithBrotli_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
-        let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject()
-        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
-        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
-
-        JSCurrentJSContext.set(context)
-        let compress = callInfo[0].toBoolean()
-        let RET = clazz.setCompressRequestBodyWithBrotli(compress)
-        JSCurrentJSContext.unset()
-        return RET.toJSValue(context)
-    }
-
-    public func isBrotliEnabled(): Bool {
-        return cjEventSource.isBrotliEnabled()
-    }
-    public static func isBrotliEnabled_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
-        let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject()
-        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
-        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
-
-        JSCurrentJSContext.set(context)
-        let RET = clazz.isBrotliEnabled()
-        JSCurrentJSContext.unset()
-        return RET.toJSValue(context)
-    }
-
-    public func isRequestBodyBrotliCompressionEnabled(): Bool {
-        return cjEventSource.isRequestBodyBrotliCompressionEnabled()
-    }
-    public static func isRequestBodyBrotliCompressionEnabled_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
-        let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject()
-        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
-        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
-
-        JSCurrentJSContext.set(context)
-        let RET = clazz.isRequestBodyBrotliCompressionEnabled()
+        let RET = clazz.getAcceptCompressType()
         JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
@@ -436,14 +372,10 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj["clearHeaders"] = context.function(clearHeaders_ArkTS_Interop_Identifier).toJSValue()
         obj["setBody"] = context.function(setBody_ArkTS_Interop_Identifier).toJSValue()
         obj["clearBody"] = context.function(clearBody_ArkTS_Interop_Identifier).toJSValue()
-        obj["setEnableGzip"] = context.function(setEnableGzip_ArkTS_Interop_Identifier).toJSValue()
-        obj["setCompressRequestBody"] = context.function(setCompressRequestBody_ArkTS_Interop_Identifier).toJSValue()
-        obj["isGzipEnabled"] = context.function(isGzipEnabled_ArkTS_Interop_Identifier).toJSValue()
-        obj["isRequestBodyCompressionEnabled"] = context.function(isRequestBodyCompressionEnabled_ArkTS_Interop_Identifier).toJSValue()
-        obj["setEnableBrotli"] = context.function(setEnableBrotli_ArkTS_Interop_Identifier).toJSValue()
-        obj["setCompressRequestBodyWithBrotli"] = context.function(setCompressRequestBodyWithBrotli_ArkTS_Interop_Identifier).toJSValue()
-        obj["isBrotliEnabled"] = context.function(isBrotliEnabled_ArkTS_Interop_Identifier).toJSValue()
-        obj["isRequestBodyBrotliCompressionEnabled"] = context.function(isRequestBodyBrotliCompressionEnabled_ArkTS_Interop_Identifier).toJSValue()
+        obj["setRequestCompressType"] = context.function(setRequestCompressType_ArkTS_Interop_Identifier).toJSValue()
+        obj["getRequestCompressType"] = context.function(getRequestCompressType_ArkTS_Interop_Identifier).toJSValue()
+        obj["setAcceptCompressType"] = context.function(setAcceptCompressType_ArkTS_Interop_Identifier).toJSValue()
+        obj["getAcceptCompressType"] = context.function(getAcceptCompressType_ArkTS_Interop_Identifier).toJSValue()
 
         obj.attachCJObject(ext)
         obj.toJSValue()
@@ -475,16 +407,3 @@ func getStackTrace(thrown: ?Exception): String {
             return res
     }
 }
-
-/**
-@Interop[ArkTS]
-public class EventSource {
-    let cjEventSource: CJEventSource
-    public init(url: String) {
-        this.cjEventSource = CJEventSource(url)
-    }
-    public func subscribe(): Unit {
-        throw Exception()
-    }
-}
- */
