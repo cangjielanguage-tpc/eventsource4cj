@@ -48,4 +48,3 @@ export declare class EventSource {
   constructor(url: string, body: ArrayBuffer)
 }
 
-export declare function testCJ(s: string): string

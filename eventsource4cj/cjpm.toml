@@ -28,3 +28,8 @@
   [target.x86_64-w64-mingw32]
     [target.x86_64-w64-mingw32.bin-dependencies]
       path-option = [ "${X86_64_LIBS}", "${X86_64_MACRO_LIBS}", "D:/Tools/Cangjie_ThirdParty/stdx/windows_x86_64_llvm/dynamic/stdx" ]
+
+[profile]
+  build = {incremental = true, lto = ""}
+  customized-option = {debug = "-g -Woff all -Won apilevel-check", release = "--fast-math -O2 -s -Woff all -Won apilevel-check"}
+  test = {}

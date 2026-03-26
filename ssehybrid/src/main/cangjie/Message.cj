@@ -3,11 +3,8 @@
  */
 package sse
 
-import eventsource4cj.client.EventSource as CJEventSource
 import eventsource4cj.model.Message as CJMessage
 import ohos.ark_interop.*
-import ohos.ark_interop_macro.*
-import ohos.hilog.Hilog
 
 public class Message <: SharedObject & JSInteropType<Message> {
     static init() {

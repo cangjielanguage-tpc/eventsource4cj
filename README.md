@@ -16,3 +16,12 @@ cd server
 npm install
 node sse-server.js
 ```
+
+## sse客户端
+配置测试服务器ip
+
+entry/src/main/ets/pages/Constants.ets
+```javascript
+const ServerIP = "192.168.8.8"
+```
+

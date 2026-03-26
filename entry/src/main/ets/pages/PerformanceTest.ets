@@ -1,5 +1,3 @@
-import { Message, EventSource, testCJ } from "ssehybrid"
-import hilog from "@ohos.hilog";
 import { sse_cj } from "./sse_cj";
 import { sse_ets } from "./sse_ets_local";
 import { SseUrl } from "./Constants"
