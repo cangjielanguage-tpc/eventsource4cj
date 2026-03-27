@@ -1,25 +1,41 @@
 ## eventsource4cj 库
 
-### 介绍
+### 1. 介绍
+#### 1.1 用途
 该库提供符合 Server-Sent Events (SSE) 协议的客户端实现，支持 GET/POST 请求、自定义请求头、请求体压缩（GZIP/Brotli）、响应解压缩等功能。
 
-### 1 EventSource 客户端
+#### 1.2 依赖
+#### 1.2.1 stdx
+该库依赖stdx中的包（https://gitcode.com/Cangjie/cangjie-stdx-bin/releases ）。
 
-前置条件：NA
+下载最新版本并解压（cangjie-stdx-ohos-aarch64-1.0.1.1.zip，cangjie-stdx-ohos-x64-1.0.1.1.zip）。
 
-场景：
+修改eventsource4cj/cjpm.toml文件中的${CANGJIE_STDX_PATH}为以上文件解压的路径，或配置环境变量（可以成功编译，但会当前版本IDE代码跳转bug）。
+
+#### 1.2.2 三方库
+该库依赖brotli4cj库（https://gitcode.com/Cangjie-TPC/brotli4cj ）。
+
+```shell
+cd ${Project_Root_Path}
+git clone git@gitcode.com:Cangjie-TPC/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
+```
+
+#### 1.3 场景
 1. 建立 SSE 连接并接收服务器推送的事件流。
 2. 支持 GET 和 POST 两种请求方式。
 3. 支持请求体压缩（GZIP/Brotli）和响应解压缩。
 4. 支持自定义请求头和事件处理器。
 
-约束：NA
+#### 1.4 约束
+NA
 
-可靠性：NA
+#### 1.5 可靠性
+NA
 
-#### 1.1 构造函数
+### 2. 接口
+#### 2.1 构造函数
 
-##### 1.1.1 主要接口
+##### 2.1.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -51,7 +67,7 @@ public class EventSource {
 }
 ```
 
-##### 1.1.2 示例
+##### 2.1.2 示例
 
 代码如下：
 
@@ -69,9 +85,9 @@ let bytes = "test data".toArray()
 let esBytes = new EventSource("http://localhost:9000/sse/post/range/1/5/1000", bytes)
 ```
 
-#### 1.2 请求体设置
+#### 2.2 请求体设置
 
-##### 1.2.1 主要接口
+##### 2.2.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -96,7 +112,7 @@ public class EventSource {
 }
 ```
 
-##### 1.2.2 示例
+##### 2.2.2 示例
 
 代码如下：
 
@@ -109,9 +125,9 @@ es.setBody("{\"query\":\"test\"}")
 es.setBody("test data".toArray())
 ```
 
-#### 1.3 请求体压缩设置
+#### 2.3 请求体压缩设置
 
-##### 1.3.1 主要接口
+##### 2.3.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -131,7 +147,7 @@ public class EventSource {
 }
 ```
 
-##### 1.3.2 示例
+##### 2.3.2 示例
 
 代码如下：
 
@@ -146,9 +162,9 @@ es.setRequestCompressType(2)
 let compressType = es.getRequestCompressType() // 返回 2
 ```
 
-#### 1.4 响应压缩设置
+#### 2.4 响应压缩设置
 
-##### 1.4.1 主要接口
+##### 2.4.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -168,7 +184,7 @@ public class EventSource {
 }
 ```
 
-##### 1.4.2 示例
+##### 2.4.2 示例
 
 代码如下：
 
@@ -183,9 +199,9 @@ es.setAcceptCompressType(1)
 es.setAcceptCompressType(3)
 ```
 
-#### 1.5 自定义请求头设置
+#### 2.5 自定义请求头设置
 
-##### 1.5.1 主要接口
+##### 2.5.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -218,7 +234,7 @@ public class EventSource {
 }
 ```
 
-##### 1.5.2 示例
+##### 2.5.2 示例
 
 代码如下：
 
@@ -246,9 +262,9 @@ es.removeHeader("X-Custom-1")
 es.clearHeaders()
 ```
 
-#### 1.6 事件处理器设置
+#### 2.6 事件处理器设置
 
-##### 1.6.1 主要接口
+##### 2.6.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -276,7 +292,7 @@ public class EventSource {
 }
 ```
 
-##### 1.6.2 示例
+##### 2.6.2 示例
 
 代码如下：
 
@@ -302,9 +318,9 @@ es.setExceptionHandler({ e, data =>
 })
 ```
 
-#### 1.7 订阅连接
+#### 2.7 订阅连接
 
-##### 1.7.1 主要接口
+##### 2.7.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -317,7 +333,7 @@ public class EventSource {
 }
 ```
 
-##### 1.7.2 示例
+##### 2.7.2 示例
 
 代码如下：
 
@@ -340,7 +356,7 @@ es.onMessage({ msg =>
 es.subscribe()
 ```
 
-#### 1.8 完整示例
+#### 2.8 完整示例
 
 以下示例演示使用 Brotli 压缩请求体并携带自定义请求头的 POST 请求：
 
@@ -383,9 +399,9 @@ Brotli msg 2: 5-2|body:{"query":"secure brotli data","clientType":"arkts"}
 ...
 ```
 
-#### 1.9 公共属性
+#### 2.9 公共属性
 
-##### 1.9.1 主要接口
+##### 2.9.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -397,7 +413,7 @@ public class EventSource {
 }
 ```
 
-##### 1.9.2 示例
+##### 2.9.2 示例
 
 代码如下：
 

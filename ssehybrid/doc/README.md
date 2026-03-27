@@ -1,23 +1,41 @@
 ## ssehybrid 库
 
-### 介绍
-该库是基于 eventsource4cj 库封装的 ArkTS 互操作接口库，提供符合 Server-Sent Events (SSE) 协议的客户端实现。支持 GET/POST 请求、自定义请求头、请求体压缩（GZIP/Brotli）、响应解压缩等功能，可从 ArkTS/ETS 环境直接调用。
+### 1. 介绍
+#### 1.1 用途
+该库提供符合 Server-Sent Events (SSE) 协议的客户端实现，支持 GET/POST 请求、自定义请求头、请求体压缩（GZIP/Brotli）、响应解压缩等功能。
 
-前置条件：NA
+#### 1.2 依赖
+#### 1.2.1 stdx
+该库依赖stdx中的包（https://gitcode.com/Cangjie/cangjie-stdx-bin/releases ）。
 
-场景：
-1. 在 ArkTS/ETS 环境中建立 SSE 连接并接收服务器推送的事件流。
+下载最新版本并解压（cangjie-stdx-ohos-aarch64-1.0.1.1.zip，cangjie-stdx-ohos-x64-1.0.1.1.zip）。
+
+修改eventsource4cj/cjpm.toml文件中的${CANGJIE_STDX_PATH}为以上文件解压的路径，或配置环境变量（可以成功编译，但会当前版本IDE代码跳转bug）。
+
+#### 1.2.2 三方库
+该库依赖brotli4cj库（https://gitcode.com/Cangjie-TPC/brotli4cj ）。
+
+```shell
+cd ${Project_Root_Path}
+git clone git@gitcode.com:Cangjie-TPC/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
+```
+
+#### 1.3 场景
+1. 建立 SSE 连接并接收服务器推送的事件流。
 2. 支持 GET 和 POST 两种请求方式。
 3. 支持请求体压缩（GZIP/Brotli）和响应解压缩。
 4. 支持自定义请求头和事件处理器。
 
-约束：NA
+#### 1.4 约束
+NA
 
-可靠性：NA
+#### 1.5 可靠性
+NA
 
-### 1. 构造函数
+### 2. 接口
+### 2.1 构造函数
 
-#### 1.1 主要接口
+#### 2.1.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -46,7 +64,7 @@ export declare class EventSource {
 }
 ```
 
-#### 1.2 示例
+#### 2.1.2 示例
 
 代码如下：
 
@@ -65,9 +83,9 @@ let bytes = encoder.encode("test data")
 let esBytes = new EventSource("http://192.168.8.8:9000/sse/post/range/1/5/1000", bytes.buffer)
 ```
 
-### 2. 请求体设置
+### 2.2. 请求体设置
 
-#### 2.1 主要接口
+#### 2.2.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -92,7 +110,7 @@ export declare class EventSource {
 }
 ```
 
-#### 2.2 示例
+#### 2.2.2 示例
 
 代码如下：
 
@@ -112,9 +130,9 @@ es.setBody(encoder.encode("test data").buffer)
 es.clearBody()
 ```
 
-### 3. 请求体压缩设置
+### 2.3. 请求体压缩设置
 
-#### 3.1 主要接口
+#### 2.3.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -134,7 +152,7 @@ export declare class EventSource {
 }
 ```
 
-#### 3.2 示例
+#### 2.3.2 示例
 
 代码如下：
 
@@ -150,9 +168,9 @@ es.setRequestBodyCompressType(2)
 let compressType = es.getRequestBodyCompressType() // 返回 2
 ```
 
-### 4. 响应压缩设置
+### 2.4. 响应压缩设置
 
-#### 4.1 主要接口
+#### 2.4.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -172,7 +190,7 @@ export declare class EventSource {
 }
 ```
 
-#### 4.2 示例
+#### 2.4.2 示例
 
 代码如下：
 
@@ -191,9 +209,9 @@ es.setAcceptCompressType(3)
 let acceptType = es.getAcceptCompressType()
 ```
 
-### 5. 自定义请求头设置
+### 2.5. 自定义请求头设置
 
-#### 5.1 主要接口
+#### 2.5.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -226,7 +244,7 @@ export declare class EventSource {
 }
 ```
 
-#### 5.2 示例
+#### 2.5.2 示例
 
 代码如下：
 
@@ -253,9 +271,9 @@ es.removeHeader("X-Custom-1")
 es.clearHeaders()
 ```
 
-### 6. 事件处理器设置
+### 2.6. 事件处理器设置
 
-#### 6.1 主要接口
+#### 2.6.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -283,7 +301,7 @@ export declare class EventSource {
 }
 ```
 
-#### 6.2 示例
+#### 2.6.2 示例
 
 代码如下：
 
@@ -309,9 +327,9 @@ es.setExceptionHandler((exception: string, buffer: ArrayBuffer) => {
 })
 ```
 
-### 7. 订阅连接
+### 2.7. 订阅连接
 
-#### 7.1 主要接口
+#### 2.7.1 主要接口
 
 ```typescript
 export declare class EventSource {
@@ -324,7 +342,7 @@ export declare class EventSource {
 }
 ```
 
-#### 7.2 示例
+#### 2.7.2 示例
 
 代码如下：
 
@@ -347,9 +365,9 @@ es.onMessage((msg: Message) => {
 es.subscribe()
 ```
 
-### 8. Message 消息对象
+### 2.8. Message 消息对象
 
-#### 8.1 主要接口
+#### 2.8.1 主要接口
 
 ```typescript
 export declare interface Message {
@@ -376,7 +394,7 @@ export declare interface Message {
 }
 ```
 
-#### 8.2 示例
+#### 2.8.2 示例
 
 代码如下：
 
@@ -416,7 +434,7 @@ function handleMessage(msg: Message): void {
 }
 ```
 
-### 9. 完整示例
+### 2.9. 完整示例
 以下示例演示在 ETS 页面中使用 Brotli 压缩请求体并携带自定义请求头的 POST 请求：
 
 ```typescript

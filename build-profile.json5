@@ -44,7 +44,7 @@
     },
     {
       "name": "brotli",
-      "srcPath": "./brotli",
+      "srcPath": "./brotli4cj/brotli",
     }
   ]
 }

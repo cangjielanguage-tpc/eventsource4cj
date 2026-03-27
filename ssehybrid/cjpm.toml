@@ -38,5 +38,4 @@
 [dependencies]
   [dependencies.eventsource4cj]
     path = "../eventsource4cj"
-  [dependencies.brotli4cj]
-    path = "${brotli}"
+
