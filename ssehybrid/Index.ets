@@ -1,3 +1,1 @@
-export { MainPage } from './src/main/ets/components/MainPage';
-
-export { Message, EventSource, testCJ } from 'libsse.so'
+export { Message, EventSource } from 'libsse.so'

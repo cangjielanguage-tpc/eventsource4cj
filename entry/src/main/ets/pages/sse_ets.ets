@@ -32,7 +32,7 @@ export function sse_ets(
       }
     })
     es.onFailure((e: Record<"message", string>) => {
-      // 得到错误消息，对错误消息做处理
+      // Get error message and handle it
       hilog.error(0, 'mdebug', e.message)
       es.close()
     })

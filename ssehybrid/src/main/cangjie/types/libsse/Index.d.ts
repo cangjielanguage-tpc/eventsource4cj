@@ -17,7 +17,34 @@ export declare class EventSource {
 
   subscribe(): Promise<void>
 
+  setHeader(name: string, value: string): void
+
+  setHeaders(headers: Record<string, string>): void
+
+  removeHeader(name: string): void
+
+  clearHeaders(): void
+
+  setBody(body: string): void
+
+  setBody(body: ArrayBuffer): void
+
+  clearBody(): void
+
+  // 0: raw data, 1: gzip compressed data, 2: brotli compressed data
+  setRequestBodyCompressType(compress: number): void
+
+  getRequestBodyCompressType(): number
+
+  // 0: no "Accept-Encoding", 1: "Accept-Encoding: gzip", 2: "Accept-Encoding: br", 3: "Accept-Encoding: gzip, br"
+  setAcceptCompressType(compress: number): void
+
+  getAcceptCompressType(): number
+
   constructor(url: string)
+
+  constructor(url: string, body: string)
+
+  constructor(url: string, body: ArrayBuffer)
 }
 
-export declare function testCJ(s: string): string

@@ -67,7 +67,7 @@ public class SseServer {
                     emitter.register(broker)
                     let checked = clientConnectedHandler(broker)
                     if (!checked) {
-                        throw Exception("服务端处理连接事件失败!")
+                        throw Exception("Server failed to process connection event!")
                     }
                     broker.serve()
             }
@@ -192,7 +192,7 @@ public class SseEmitterBroker {
     protected func serve() {
         this.response = Option.Some(HttpResponseWriter(this.context))
 
-        // 开始发送事件
+        // Start sending events
         this
             .context
             .responseBuilder

@@ -2,6 +2,8 @@ const express = require('express')
 const fs = require('fs')
 const serveStatic = require('serve-static')
 const { default: SseStream } = require('ssestream')
+const compression = require('compression')
+const zlib = require('zlib')
 
 const tinyData = ''
 const normalData =
@@ -22,8 +24,222 @@ function getData(datasize) {
     return tinyData
 }
 
+// Middleware to decompress GZIP request body
+function gzipBodyParser(req, res, next) {
+    const contentEncoding = req.headers['content-encoding']
+    if (contentEncoding === 'gzip') {
+        let chunks = []
+        req.on('data', chunk => chunks.push(chunk))
+        req.on('end', () => {
+            const buffer = Buffer.concat(chunks)
+            zlib.gunzip(buffer, (err, decompressed) => {
+                if (err) {
+                    console.error('GZIP decompression error:', err)
+                    res.status(400).json({ error: 'Invalid GZIP data' })
+                    return
+                }
+                req.body = decompressed
+                req.decompressedBody = decompressed.toString('utf8')
+                req._body = true // Mark body as already parsed to skip body-parser
+                delete req.headers['content-encoding'] // Remove header to prevent body-parser from checking it
+                next()
+            })
+        })
+    } else {
+        next()
+    }
+}
+
+// Middleware to decompress Brotli request body
+function brotliBodyParser(req, res, next) {
+    const contentEncoding = req.headers['content-encoding']
+    if (contentEncoding === 'br') {
+        let chunks = []
+        req.on('data', chunk => chunks.push(chunk))
+        req.on('end', () => {
+            const buffer = Buffer.concat(chunks)
+            zlib.brotliDecompress(buffer, (err, decompressed) => {
+                if (err) {
+                    console.error('Brotli decompression error:', err)
+                    res.status(400).json({ error: 'Invalid Brotli data' })
+                    return
+                }
+                req.body = decompressed
+                req.decompressedBody = decompressed.toString('utf8')
+                req._body = true // Mark body as already parsed to skip body-parser
+                delete req.headers['content-encoding'] // Remove header to prevent body-parser from checking it
+                next()
+            })
+        })
+    } else {
+        next()
+    }
+}
+
+// Combined compression body parser
+function compressionBodyParser(req, res, next) {
+    const contentEncoding = req.headers['content-encoding']
+    if (contentEncoding === 'gzip') {
+        gzipBodyParser(req, res, next)
+    } else if (contentEncoding === 'br') {
+        brotliBodyParser(req, res, next)
+    } else {
+        next()
+    }
+}
+
 const app = express()
 app.use(serveStatic(__dirname))
+app.use(compression()) // Enable response compression
+app.use(compressionBodyParser) // Handle GZIP and Brotli request bodies (must be before express.json())
+app.use(express.json())
+app.use(express.text())
+app.use(express.raw({ type: 'application/octet-stream' }))
+
+// POST SSE endpoint with body support
+app.post('/sse/post/range/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('POST SSE connection:')
+    console.log('  Headers:', JSON.stringify(req.headers, null, 2))
+    console.log('  Body:', req.body)
+
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    const pusher = setInterval(() => {
+        if (count <= 0) {
+            clearInterval(pusher)
+            res.end()
+            return
+        }
+        const result = Array.from({ length: page }, (_, i) => `event: post-range\ndata: ${count}-${i + 1}|body:${JSON.stringify(req.body)}${data}\n\n`).join('');
+        res.write(result)
+        count--
+    }, interval)
+    res.on('close', () => {
+        console.log('POST connection closed')
+        clearInterval(pusher)
+    })
+})
+
+// POST SSE endpoint with custom headers validation
+app.post('/sse/post/secure/range/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('Secure POST SSE connection:')
+    console.log('  Headers:', JSON.stringify(req.headers, null, 2))
+    console.log('  Body:', req.body)
+
+    const authToken = req.headers['x-auth-token']
+    const clientId = req.headers['x-client-id']
+    const apiKey = req.headers['x-api-key']
+
+    console.log('  X-Auth-Token:', authToken)
+    console.log('  X-Client-Id:', clientId)
+    console.log('  X-Api-Key:', apiKey)
+
+    if (!authToken || !clientId) {
+        console.log('  Authentication failed: missing required headers')
+        res.status(401).json({ error: 'Unauthorized: missing required headers (X-Auth-Token, X-Client-Id)' })
+        return
+    }
+
+    if (apiKey && apiKey !== 'valid-api-key-12345') {
+        console.log('  API Key validation failed')
+        res.status(403).json({ error: 'Forbidden: invalid API key' })
+        return
+    }
+
+    console.log('  Authentication successful')
+
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    const pusher = setInterval(() => {
+        if (count <= 0) {
+            clearInterval(pusher)
+            res.end()
+            return
+        }
+        const result = Array.from({ length: page }, (_, i) => `event: post-secure-range\ndata: ${count}-${i + 1}|client:${clientId}|body:${JSON.stringify(req.body)}${data}\n\n`).join('');
+        res.write(result)
+        count--
+    }, interval)
+    res.on('close', () => {
+        console.log('Secure POST connection closed for client:', clientId)
+        clearInterval(pusher)
+    })
+})
+
+// SSE endpoint requiring custom headers validation
+app.get('/sse/secure/range/:page/:count/:interval/:datasize?', (req, res) => {
+    // Validate custom headers
+    const authToken = req.headers['x-auth-token']
+    const clientId = req.headers['x-client-id']
+    const apiKey = req.headers['x-api-key']
+
+    console.log('Secure SSE connection attempt:')
+    console.log('  X-Auth-Token:', authToken)
+    console.log('  X-Client-Id:', clientId)
+    console.log('  X-Api-Key:', apiKey)
+
+    // Simple validation example
+    if (!authToken || !clientId) {
+        console.log('  Authentication failed: missing required headers')
+        res.status(401).json({ error: 'Unauthorized: missing required headers (X-Auth-Token, X-Client-Id)' })
+        return
+    }
+
+    // Optional API Key validation
+    if (apiKey && apiKey !== 'valid-api-key-12345') {
+        console.log('  API Key validation failed')
+        res.status(403).json({ error: 'Forbidden: invalid API key' })
+        return
+    }
+
+    console.log('  Authentication successful')
+
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    // Include client ID in data to verify identity
+    const pusher = setInterval(() => {
+        if (count <= 0) {
+            clearInterval(pusher)
+            res.end()
+            return
+        }
+        const result = Array.from({ length: page }, (_, i) => `event: secure-range\ndata: ${count}-${i + 1}|client:${clientId}|token:${authToken.substring(0, 8)}...${data}\n\n`).join('');
+        res.write(result)
+        count--
+    }, interval)
+    res.on('close', () => {
+        console.log('Secure connection closed for client:', clientId)
+        clearInterval(pusher)
+    })
+})
+
 app.get('/sse/range/:page/:count/:interval/:datasize?', (req, res) => {
     // console.log({
     //     method: req.method,
@@ -80,6 +296,197 @@ app.get('/sse', (req, res) => {
         sseStream.unpipe(res)
     })
 })
+
+// GZIP compressed SSE response endpoint (for testing response decompression)
+// This endpoint returns a complete GZIP compressed SSE response
+app.get('/sse/gzip-response/test/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('GZIP Response Test:')
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages based on parameters
+    const messages = []
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: gzip-test\ndata: ${i}-${j + 1} from GZIP compressed response${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('gzip')) {
+        // Return GZIP compressed response
+        zlib.gzip(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('GZIP compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'gzip')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent GZIP compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
+// GZIP compressed SSE POST endpoint (for testing both request and response compression)
+app.post('/sse/gzip-response/post/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('GZIP Response POST Test:')
+    console.log('  Content-Encoding:', req.headers['content-encoding'])
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    console.log('  Decompressed Body:', req.decompressedBody || 'N/A')
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    const requestBody = req.decompressedBody || JSON.stringify(req.body) || 'empty'
+    
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages including request body info based on parameters
+    const messages = []
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: gzip-post-test\ndata: ${i}-${j + 1}|body:${requestBody.substring(0, 50)}${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('gzip')) {
+        // Return GZIP compressed response
+        zlib.gzip(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('GZIP compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'gzip')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent GZIP compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
+// ============== Brotli SSE Endpoints ==============
+
+// Brotli compressed SSE response endpoint (for testing response decompression)
+// This endpoint returns a complete Brotli compressed SSE response
+app.get('/sse/brotli-response/test/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('Brotli Response Test:')
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages based on parameters
+    const messages = []
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: brotli-test\ndata: ${i}-${j + 1} from Brotli compressed response${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('br')) {
+        // Return Brotli compressed response
+        zlib.brotliCompress(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('Brotli compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'br')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent Brotli compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
+// Brotli compressed SSE POST endpoint (for testing both request and response compression)
+app.post('/sse/brotli-response/post/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('Brotli Response POST Test:')
+    console.log('  Content-Encoding:', req.headers['content-encoding'])
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+    console.log('  Decompressed Body:', req.decompressedBody || 'N/A')
+    
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    const requestBody = req.decompressedBody || JSON.stringify(req.body) || 'empty'
+    
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+    
+    // Generate SSE messages including request body info based on parameters
+    const messages = []
+    for (let i = 1; i <= count; i++) {
+        const pageMessages = Array.from({ length: page }, (_, j) => 
+            `event: brotli-post-test\ndata: ${i}-${j + 1}|body:${requestBody.substring(0, 50)}${data}\n\n`
+        ).join('')
+        messages.push(pageMessages)
+    }
+    const sseContent = messages.join('')
+    
+    if (acceptEncoding.includes('br')) {
+        // Return Brotli compressed response
+        zlib.brotliCompress(Buffer.from(sseContent), (err, compressed) => {
+            if (err) {
+                console.error('Brotli compression error:', err)
+                res.status(500).send('Compression error')
+                return
+            }
+            res.setHeader('Content-Type', 'text/event-stream')
+            res.setHeader('Content-Encoding', 'br')
+            res.setHeader('Access-Control-Allow-Origin', '*')
+            res.send(compressed)
+            console.log('  Sent Brotli compressed response, size:', compressed.length)
+        })
+    } else {
+        // Return uncompressed response
+        res.setHeader('Content-Type', 'text/event-stream')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.send(sseContent)
+        console.log('  Sent uncompressed response')
+    }
+})
+
 const PORT = process.env.PORT || 9000
 app.listen(PORT, '0.0.0.0', (err) => {
     if (err) {

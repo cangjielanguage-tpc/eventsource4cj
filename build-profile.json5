@@ -41,6 +41,10 @@
     {
       "name": "ssehybrid",
       "srcPath": "./ssehybrid",
+    },
+    {
+      "name": "brotli",
+      "srcPath": "./brotli4cj/brotli",
     }
   ]
 }

@@ -1,0 +1,9 @@
+const ServerIP = "192.168.8.8"
+export const SseUrl = `http://${ServerIP}:9000/sse/range`;
+export const SseUrlSecure = `http://${ServerIP}:9000/sse/secure/range`;
+export const SseUrlPost = `http://${ServerIP}:9000/sse/post/range`;
+export const SseUrlPostSecure = `http://${ServerIP}:9000/sse/post/secure/range`;
+export const SseUrlGzip = `http://${ServerIP}:9000/sse/gzip-response/test`;
+export const SseUrlGzipFull = `http://${ServerIP}:9000/sse/gzip-response/post`;
+export const SseUrlBr = `http://${ServerIP}:9000/sse/brotli-response/test`;
+export const SseUrlBrFull = `http://${ServerIP}:9000/sse/brotli-response/post`;

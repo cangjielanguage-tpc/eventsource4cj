@@ -6,8 +6,8 @@ package sse
 import eventsource4cj.client.EventSource as CJEventSource
 import eventsource4cj.model.Message as CJMessage
 import ohos.ark_interop.*
-import ohos.ark_interop_macro.*
 import ohos.hilog.Hilog
+import std.collection.HashMap
 
 public class EventSource <: SharedObject & JSInteropType<EventSource> {
     static init() {
@@ -18,6 +18,16 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 clazz.addMethod("setExceptionHandler", context.function(setExceptionHandler_ArkTS_Interop_Identifier))
                 clazz.addMethod("onMessage", context.function(onMessage_ArkTS_Interop_Identifier))
                 clazz.addMethod("onEvent", context.function(onEvent_ArkTS_Interop_Identifier))
+                clazz.addMethod("setHeader", context.function(setHeader_ArkTS_Interop_Identifier))
+                clazz.addMethod("setHeaders", context.function(setHeaders_ArkTS_Interop_Identifier))
+                clazz.addMethod("removeHeader", context.function(removeHeader_ArkTS_Interop_Identifier))
+                clazz.addMethod("clearHeaders", context.function(clearHeaders_ArkTS_Interop_Identifier))
+                clazz.addMethod("setBody", context.function(setBody_ArkTS_Interop_Identifier))
+                clazz.addMethod("clearBody", context.function(clearBody_ArkTS_Interop_Identifier))
+                clazz.addMethod("setRequestBodyCompressType", context.function(setRequestCompressType_ArkTS_Interop_Identifier))
+                clazz.addMethod("getRequestBodyCompressType", context.function(getRequestCompressType_ArkTS_Interop_Identifier))
+                clazz.addMethod("setAcceptCompressType", context.function(setAcceptCompressType_ArkTS_Interop_Identifier))
+                clazz.addMethod("getAcceptCompressType", context.function(getAcceptCompressType_ArkTS_Interop_Identifier))
                 return clazz
         }
     }
@@ -26,11 +36,35 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         this.cjEventSource = CJEventSource(url)
     }
 
+    public init(url: String, body: String) {
+        this.cjEventSource = CJEventSource(url, body)
+    }
+
+    public init(url: String, body: Array<UInt8>) {
+        this.cjEventSource = CJEventSource(url, body)
+    }
+
     public static func jsConstructor(context: JSContext, callInfo: JSCallInfo): JSValue {
-        let arg1768443191338681800 = String.fromJSValue(context, callInfo[0])
+        let argCount = callInfo.count
+        let url = String.fromJSValue(context, callInfo[0])
 
         JSCurrentJSContext.set(context)
-        let clazz = EventSource(arg1768443191338681800)
+        let clazz: EventSource
+        if (argCount >= 2) {
+            // Check if second argument is String or ArrayBuffer
+            let jsBody = callInfo[1]
+            if (jsBody.isString()) {
+                let body = String.fromJSValue(context, jsBody)
+                clazz = EventSource(url, body)
+            } else {
+                // Treat as ArrayBuffer/Uint8Array
+                let buffer = jsBody.asArrayBuffer()
+                let body = buffer.readBytes()
+                clazz = EventSource(url, body)
+            }
+        } else {
+            clazz = EventSource(url)
+        }
         JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
@@ -137,6 +171,192 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         return promise.toJSValue()
     }
 
+    public func setHeader(name: String, value: String): Unit {
+        cjEventSource.setHeader(name, value)
+    }
+    public static func setHeader_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let name = callInfo[0].toString()
+        let value = callInfo[1].toString()
+        let RET = clazz.setHeader(name, value)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func setHeaders(headers: HashMap<String, String>): Unit {
+        cjEventSource.setHeaders(headers)
+    }
+    public static func setHeaders_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let jsHeaders = callInfo[0]
+        let headers = HashMap<String, String>()
+
+        // Use JS built-in method to get all keys of object
+        let objectKeys = context.global["Object"].asObject()["keys"].asFunction()
+        let keysJSArray = objectKeys.call([jsHeaders]).asArray(context)
+        let length = keysJSArray.size
+        let jsHeadersObj = jsHeaders.asObject(context)
+
+        for (i in 0..length) {
+            let key = keysJSArray[i].toString()
+            let value = jsHeadersObj[key].toString()
+            headers.add(key, value)
+        }
+        let RET = clazz.setHeaders(headers)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func removeHeader(name: String): Unit {
+        cjEventSource.removeHeader(name)
+    }
+    public static func removeHeader_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let name = callInfo[0].toString()
+        let RET = clazz.removeHeader(name)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func clearHeaders(): Unit {
+        cjEventSource.clearHeaders()
+    }
+    public static func clearHeaders_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.clearHeaders()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func setBody(body: String): Unit {
+        cjEventSource.setBody(body)
+    }
+
+    public func setBody(body: Array<UInt8>): Unit {
+        cjEventSource.setBody(body)
+    }
+
+    public static func setBody_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let jsBody = callInfo[0]
+        let RET: Unit
+        if (jsBody.isString()) {
+            let body = jsBody.toString()
+            RET = clazz.setBody(body)
+        } else {
+            // Treat as ArrayBuffer/Uint8Array
+            let buffer = jsBody.asArrayBuffer()
+            let body = buffer.readBytes()
+            RET = clazz.setBody(body)
+        }
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func clearBody(): Unit {
+        cjEventSource.clearBody()
+    }
+    public static func clearBody_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.clearBody()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func setRequestCompressType(compress: Int64): Unit {
+        cjEventSource.setRequestCompressType(compress)
+    }
+    public static func setRequestCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let compress = Int64(callInfo[0].toNumber())
+        let RET = clazz.setRequestCompressType(compress)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func getRequestCompressType(): Int64 {
+        cjEventSource.getRequestCompressType()
+    }
+    public static func getRequestCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.getRequestCompressType()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func setAcceptCompressType(compress: Int64): Unit {
+        cjEventSource.setAcceptCompressType(compress)
+    }
+
+    public static func setAcceptCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let compress = Int64(callInfo[0].toNumber())
+        let RET = clazz.setAcceptCompressType(compress)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func getAcceptCompressType(): Int64 {
+        cjEventSource.getAcceptCompressType()
+    }
+
+    public static func getAcceptCompressType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.getAcceptCompressType()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
     public func toJSValue(context: JSContext): JSValue {
         let ext = context.external(this)
         let obj = context.object()
@@ -145,6 +365,16 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj["setExceptionHandler"] = context.function(setExceptionHandler_ArkTS_Interop_Identifier).toJSValue()
         obj["onMessage"] = context.function(onMessage_ArkTS_Interop_Identifier).toJSValue()
         obj["onEvent"] = context.function(onEvent_ArkTS_Interop_Identifier).toJSValue()
+        obj["setHeader"] = context.function(setHeader_ArkTS_Interop_Identifier).toJSValue()
+        obj["setHeaders"] = context.function(setHeaders_ArkTS_Interop_Identifier).toJSValue()
+        obj["removeHeader"] = context.function(removeHeader_ArkTS_Interop_Identifier).toJSValue()
+        obj["clearHeaders"] = context.function(clearHeaders_ArkTS_Interop_Identifier).toJSValue()
+        obj["setBody"] = context.function(setBody_ArkTS_Interop_Identifier).toJSValue()
+        obj["clearBody"] = context.function(clearBody_ArkTS_Interop_Identifier).toJSValue()
+        obj["setRequestCompressType"] = context.function(setRequestCompressType_ArkTS_Interop_Identifier).toJSValue()
+        obj["getRequestCompressType"] = context.function(getRequestCompressType_ArkTS_Interop_Identifier).toJSValue()
+        obj["setAcceptCompressType"] = context.function(setAcceptCompressType_ArkTS_Interop_Identifier).toJSValue()
+        obj["getAcceptCompressType"] = context.function(getAcceptCompressType_ArkTS_Interop_Identifier).toJSValue()
 
         obj.attachCJObject(ext)
         obj.toJSValue()
@@ -176,16 +406,3 @@ func getStackTrace(thrown: ?Exception): String {
             return res
     }
 }
-
-/**
-@Interop[ArkTS]
-public class EventSource {
-    let cjEventSource: CJEventSource
-    public init(url: String) {
-        this.cjEventSource = CJEventSource(url)
-    }
-    public func subscribe(): Unit {
-        throw Exception()
-    }
-}
- */
