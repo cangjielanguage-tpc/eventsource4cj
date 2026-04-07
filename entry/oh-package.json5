@@ -6,7 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "ssehybrid": "file:../ssehybrid",
+    "ssehybrid": "file:../ssehybrid/build/default/outputs/default/ssehybrid.har",
     "@ohos/eventsource": "^2.0.3",
     "@ohos/node-polyfill": "^1.0.1"
   },

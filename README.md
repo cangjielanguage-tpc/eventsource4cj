@@ -41,4 +41,14 @@ entry/src/main/ets/pages/Constants.ets
 const ServerIP = "192.168.8.8"
 ```
 
-编译并安装到手机上执行测试用例
+## 5. 编译
+
+编译brotli模块：
+
+点击brotli4cj/brotli目录，点击Build - Make Module 'brotli'
+
+编译ssehybrid模块：
+
+点击ssehybrid目录，点击Build - Make Module 'ssehybrid'
+
+编译并安装应用即可开始测试。
