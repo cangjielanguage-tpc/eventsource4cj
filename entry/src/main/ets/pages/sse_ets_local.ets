@@ -1,6 +1,7 @@
 import EventSource from "./eventsource";
 import hilog from "@ohos.hilog";
 import { systemDateTime } from "@kit.BasicServicesKit";
+import { NsPerMs } from "./Constants";
 
 export function sse_ets(
   view: object,
@@ -16,15 +17,17 @@ export function sse_ets(
     url = `${url}/${page}/${range}/${interval}/${datasize}`
     let max = page * range
     let count = 0
+    hilog.info(0, 'mdebug', `begin: ${url}`)
     let t0 = systemDateTime.getTime(true)
     let finish = () => {
-      let time = systemDateTime.getTime(true) - t0
-      let msg = `ets sse done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      let time = (systemDateTime.getTime(true) - t0) / NsPerMs
+      let msg = `ets sse done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / range} ms/range`
       hilog.error(0, 'mdebug', msg)
       view['message'] = msg
     }
     let es = new EventSource(url)
     es.addEventListener('range', (e: Record<"data", string>) => {
+      // hilog.info(0, 'mdebug', `Received: ${e.data}`)
       count++
       if (count >= max) {
         finish()

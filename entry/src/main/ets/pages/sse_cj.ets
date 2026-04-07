@@ -1,6 +1,7 @@
 import { EventSource } from 'ssehybrid'
 import hilog from '@ohos.hilog'
 import { systemDateTime } from '@kit.BasicServicesKit'
+import { NsPerMs } from './Constants'
 
 /**
  * Basic SSE connection (without custom headers)
@@ -19,20 +20,24 @@ export function sse_cj(
     url = `${url}/${page}/${range}/${interval}/${datasize}`
     let max = page * range
     let count = 0
+    hilog.info(0, 'mdebug', `begin: ${url}`)
     let t0 = systemDateTime.getTime(true)
     let finish = () => {
-      let time = systemDateTime.getTime(true) - t0
-      let msg = `cj sse done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      let time = (systemDateTime.getTime(true) - t0) / NsPerMs
+      let msg = `cj sse done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / range} ms/range`
       hilog.warn(0, 'mdebug', msg)
       view['message'] = msg
     }
     let es = new EventSource(url)
     es.onMessage((msg) => {
       count++
-      hilog.info(0, 'mdebug', `Received: ${msg.data}`)
+      // hilog.info(0, 'mdebug', `Received: ${msg.data}`)
       if (count >= max) {
         finish()
       }
+    })
+    es.setExceptionHandler((e, buf) => {
+      hilog.error(0, 'mdebug', `Exception ${e}`)
     })
     es.subscribe()
   } catch (e) {

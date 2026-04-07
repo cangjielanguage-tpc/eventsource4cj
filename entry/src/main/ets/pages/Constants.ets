@@ -7,3 +7,4 @@ export const SseUrlGzip = `http://${ServerIP}:9000/sse/gzip-response/test`;
 export const SseUrlGzipFull = `http://${ServerIP}:9000/sse/gzip-response/post`;
 export const SseUrlBr = `http://${ServerIP}:9000/sse/brotli-response/test`;
 export const SseUrlBrFull = `http://${ServerIP}:9000/sse/brotli-response/post`;
+export const NsPerMs = 1000_000
