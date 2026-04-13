@@ -43,6 +43,7 @@ export declare class EventSource {
 
   getAcceptCompressType(): number
 
-  constructor(url: string)
+  // xxxxTimeoutMs: -1 means do not set timeout
+  constructor(url: string, connectTimeoutMs: number, readTimeoutMs: number, writeTimeoutMs: number)
 }
 

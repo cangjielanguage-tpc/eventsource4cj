@@ -33,33 +33,20 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         }
     }
 
-    public init(url: String) {
-        this.cjEventSource = CJEventSource(url)
+    public init(url: String, connectTimeoutMs: Int64, readTimeoutMs: Int64, writeTimeoutMs: Int64) {
+        this.cjEventSource = CJEventSource(url, connectTimeoutMs: connectTimeoutMs, readTimeoutMs: readTimeoutMs, writeTimeoutMs: writeTimeoutMs)
     }
 
     public static func jsConstructor(context: JSContext, callInfo: JSCallInfo): JSValue {
         let argCount = callInfo.count
         let url = String.fromJSValue(context, callInfo[0])
+        var connectTimeout = Int64.fromJSValue(context, callInfo[1])
+        var readTimeout = Int64.fromJSValue(context, callInfo[2])
+        var writeTimeout = Int64.fromJSValue(context, callInfo[3])
 
         JSCurrentJSContext.set(context)
         let clazz: EventSource
-        if (argCount >= 2) {
-            // Check if second argument is String or ArrayBuffer
-            let jsBody = callInfo[1]
-            if (jsBody.isString()) {
-                let body = String.fromJSValue(context, jsBody)
-                clazz = EventSource(url)
-                clazz.setBody(body)
-            } else {
-                // Treat as ArrayBuffer/Uint8Array
-                let buffer = jsBody.asArrayBuffer()
-                let body = buffer.readBytes()
-                clazz = EventSource(url)
-                clazz.setBody(body)
-            }
-        } else {
-            clazz = EventSource(url)
-        }
+        clazz = EventSource(url, connectTimeout, readTimeout, writeTimeout)
         JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()

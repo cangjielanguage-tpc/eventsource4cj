@@ -28,7 +28,7 @@ export function sse_cj(
       hilog.warn(0, 'mdebug', msg)
       view['message'] = msg
     }
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
     es.onMessage((msg) => {
       count++
       // hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -71,7 +71,7 @@ export function sse_cj_with_header(
       view['message'] = msg
     }
 
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
 
     // Set single custom header
     es.setHeader('X-Auth-Token', 'my-secret-token-12345')
@@ -117,7 +117,7 @@ export function sse_cj_with_headers(
       view['message'] = msg
     }
 
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
 
     // Batch set headers
     es.setHeaders({
@@ -166,7 +166,7 @@ export function sse_cj_headers_management(
       view['message'] = msg
     }
 
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
 
     // 1. Set some headers
     es.setHeader('X-Auth-Token', 'temp-token')
@@ -232,7 +232,7 @@ export function sse_cj_post(
       clientType: 'arkts'
     })
 
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
     es.setBody(requestBody)
 
     es.onMessage((msg) => {
@@ -282,7 +282,7 @@ export function sse_cj_post_with_headers(
       clientType: 'arkts-secure'
     })
 
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
     es.setBody(requestBody)
 
     // Set custom headers
@@ -329,7 +329,7 @@ export function sse_cj_post_body_management(
       view['message'] = msg
     }
 
-    let es = new EventSource(url)
+    let es = new EventSource(url, -1, -1, -1)
 
     // Step 1: Set body using setBody
     es.setBody(JSON.stringify({ step: 1, data: 'initial' }))
@@ -388,7 +388,7 @@ export function sse_cj_gzip_response(
       view['message'] = msg
     }
 
-    let es = new EventSource(testUrl)
+    let es = new EventSource(testUrl, -1, -1, -1)
 
     // Enable GZIP to request compressed response and handle decompression
     es.setAcceptCompressType(1)
@@ -441,7 +441,7 @@ export function sse_cj_gzip_full(
       clientType: 'arkts-gzip-full'
     })
 
-    let es = new EventSource(testUrl)
+    let es = new EventSource(testUrl, -1, -1, -1)
     es.setBody(requestBody)
 
     // Enable both request body compression and response decompression
@@ -490,7 +490,7 @@ export function sse_cj_brotli_response(
       view['message'] = msg
     }
 
-    let es = new EventSource(testUrl)
+    let es = new EventSource(testUrl, -1, -1, -1)
 
     // Enable Brotli to request compressed response and handle decompression
     es.setAcceptCompressType(2)
@@ -543,7 +543,7 @@ export function sse_cj_brotli_full(
       clientType: 'arkts-brotli-full'
     })
 
-    let es = new EventSource(testUrl)
+    let es = new EventSource(testUrl, -1, -1, -1)
     es.setBody(requestBody)
 
     // Enable both request body compression and response decompression
@@ -598,7 +598,7 @@ export function sse_cj_brotli_with_headers(
       clientType: 'arkts-brotli-secure'
     })
 
-    let es = new EventSource(testUrl)
+    let es = new EventSource(testUrl, -1, -1, -1)
     es.setBody(requestBody)
 
     // Enable Brotli compression
