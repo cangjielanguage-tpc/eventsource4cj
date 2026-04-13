@@ -27,7 +27,8 @@ public class EventSource {
     let bufferSize: Int64
     let handlers = HashMap<String, (Message) -> Unit>()
     let customHeaders = HashMap<String, String>()
-    var retryInMills: UInt16 = 30_000
+    var retryInterval: Duration = Duration.millisecond * 100
+    var retryCount: Int64 = 0
     var lastMessageId: Option<String> = Option.None
     var messageHandler = {_: Message =>}
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
@@ -77,6 +78,10 @@ public class EventSource {
         this.requestBody = Option.None
     }
 
+    public func setRetry(interval: Duration, count: Int64) {
+        this.retryInterval = interval
+        this.retryCount = count
+    }
     // 0: raw data, 1: gzip compressed data, 2: brotli compressed data
     public func setRequestCompressType(compress: Int64): Unit {
         if (compress == 1) {
@@ -160,6 +165,7 @@ public class EventSource {
 
     public func subscribe(): Future<Unit> {
         this.future = spawn {
+            var failCount = 0
             while (true) {
                 try {
                     let stat = connect(this.lastMessageId)
@@ -167,8 +173,18 @@ public class EventSource {
                         return
                     }
                 } catch (ex: Exception) {
-                    log(ex)
-                    sleep(Int64(retryInMills) * Duration.millisecond)
+                    failCount++
+                    if (failCount <= this.retryCount) {
+                        log(ex)
+                        log("connect retry count ${failCount}")
+                        sleep(this.retryInterval)
+                    } else {
+                        log(ex)
+                        log("connect fail!")
+                        this.exceptionHandler(ex, [])
+                        this.client.close()
+                        return
+                    }
                 }
                 if (Thread.currentThread.hasPendingCancellation) {  // Check cancellation request
                     this.client.close()
@@ -215,10 +231,10 @@ public class EventSource {
                 head[1].iterator().at(0).getOrThrow().toAsciiLower().startsWith("text/event-stream")
         })
         if (!isEventStream) {
-            let a = rsp.headers.iterator() |> map(
-                {h: (String, Collection<String>) => "${h[0]}:${h[1] |> collectString(delimiter: ",")}"}) |>
-                collectString(delimiter: "\n")
-            throw Exception("Server response type error: Content-Type is incorrect! ${rsp.toString()}")
+            let exception = Exception("Server response type error: Content-Type is incorrect!\n${rsp.toString()}")
+            let data = readStreamToEnd(rsp.body)
+            this.exceptionHandler(exception, data)
+            throw exception
         }
     }
 
@@ -240,17 +256,17 @@ public class EventSource {
 
     private func readStreamToEnd(stream: InputStream): Array<UInt8> {
         let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
-        let compressBuffer = ArrayList<UInt8>()
+        let data = ArrayList<UInt8>()
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
                 break
             }
             for (byte in buffer[0..len]) {
-                compressBuffer.add(byte)
+                data.add(byte)
             }
         }
-        return compressBuffer.toArray()
+        return data.toArray()
     }
 
     private func handleMessage(messageHolder: ArrayList<UInt8>): Unit {
@@ -260,7 +276,8 @@ public class EventSource {
 
             // Set retry time if specified in message
             if (let Some(retry) <- message.retryInMills) {
-                this.retryInMills = retry
+                this.retryInterval = Duration.millisecond * Int64(retry)
+                this.retryCount = Int64.Max
             }
 
             // Call message handler
