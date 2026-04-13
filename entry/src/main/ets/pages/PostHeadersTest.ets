@@ -1,5 +1,9 @@
-import { sse_cj_post, sse_cj_post_with_headers, sse_cj_post_body_management } from "./sse_cj";
-import { SseUrlPost, SseUrlPostSecure } from "./Constants"
+import { sse_cj_post,
+  sse_cj_post_with_headers,
+  sse_cj_post_body_management,
+  SseUrlPost,
+  SseUrlPostSecure
+} from "testpages";
 
 @Entry
 @Component

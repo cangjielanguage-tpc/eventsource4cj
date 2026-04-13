@@ -16,10 +16,11 @@ import stdx.net.http.*
 import std.net.*
 import ohos.hilog.Hilog
 import std.io.InputStream
+import stdx.net.tls.*
+import std.sync.AtomicBool
 
 public class EventSource {
     static const DEFAULT_BUFFER_SIZE = 1024 * 8
-    static let DEFAULT_TIME_OUT = 365 * 100 * Duration.day
     static let NEXT_LINE_FLAG = UInt8(b'\n')
     let client: Client
     let url: String
@@ -34,38 +35,34 @@ public class EventSource {
     var requestBody: Option<RequestBody> = Option.None
     var requestBodyCompressType: Option<CompressType> = Option.None
     var acceptCompressTypes: Array<CompressType> = []
-    let TcpSocketConnector = {
-        sa: SocketAddress =>
-            var tcpSocket = TcpSocket(sa)
-            tcpSocket.noDelay = true
-            var socket = ObseredSocket(tcpSocket)
-            this.socket = socket
-            log("Socket reset")
-            socket.connect()
-            return socket
-    }
+    var closed: AtomicBool = AtomicBool(false)
+    var future: Option<Future<Unit>> = Option.None
 
-    public init(url: String, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_TIME_OUT).build()
-        this.client = client
+    public init(url: String, connectTimeoutMs!: Int64 = -1, readTimeoutMs!: Int64 = -1, writeTimeoutMs!: Int64 = -1, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
+        let connectTimeout: Option<Duration> = if (connectTimeoutMs > 0 ) { Duration.millisecond * connectTimeoutMs } else { None }
+        let readTimeout: Duration = if (readTimeoutMs > 0 ) { Duration.millisecond * readTimeoutMs } else { 365 * 100 * Duration.day }
+        let writeTimeout: Duration = if (writeTimeoutMs > 0 ) { Duration.millisecond * writeTimeoutMs } else { 365 * 100 * Duration.day }
+        let TcpSocketConnector = {
+            sa: SocketAddress =>
+                var tcpSocket = TcpSocket(sa)
+                tcpSocket.noDelay = true
+                var socket = ObseredSocket(tcpSocket)
+                this.socket = socket
+                log("Socket connecting")
+                socket.connect(timeout: connectTimeout)
+                log("Socket connected")
+                return socket
+        }
+        let clientBuilder = ClientBuilder().connector(TcpSocketConnector).readTimeout(readTimeout).writeTimeout(writeTimeout)
+        if (url.startsWith("https://")) {
+            var tlsConfig = TlsClientConfig()
+            tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
+            tlsConfig.alpnProtocolsList = ["h2"]
+            clientBuilder.tlsConfig(tlsConfig)
+        }
+        this.client = clientBuilder.build()
         this.url = url
         this.bufferSize = bufferSize
-    }
-
-    public init(url: String, body: String, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_TIME_OUT).build()
-        this.client = client
-        this.url = url
-        this.bufferSize = bufferSize
-        this.requestBody = StringBody(body)
-    }
-
-    public init(url: String, body: Array<UInt8>, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
-        let client = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_TIME_OUT).build()
-        this.client = client
-        this.url = url
-        this.bufferSize = bufferSize
-        this.requestBody = StreamBody(body)
     }
 
     public func setBody(body: String): Unit {
@@ -162,7 +159,7 @@ public class EventSource {
     }
 
     public func subscribe(): Future<Unit> {
-        return spawn {
+        this.future = spawn {
             while (true) {
                 try {
                     let stat = connect(this.lastMessageId)
@@ -173,8 +170,18 @@ public class EventSource {
                     log(ex)
                     sleep(Int64(retryInMills) * Duration.millisecond)
                 }
+                if (Thread.currentThread.hasPendingCancellation) {  // Check cancellation request
+                    this.client.close()
+                    log("connection closed")
+                    return
+                }
             }
         }
+        return this.future.getOrThrow()
+    }
+
+    public func close(): Unit {
+        this.future?.cancel()
     }
 
     private func getHeaders(lastMessageId: Option<String>): HttpHeaders {
@@ -363,9 +370,7 @@ public class EventSource {
     private func connect(lastMessageId: Option<String>): Int {
         let headers = getHeaders(lastMessageId)
 
-        let endpoint = url
-        let req: HttpRequest
-        if (let Some(body) <- this.requestBody) {
+        let req: HttpRequest = if (let Some(body) <- this.requestBody) {
             // POST body
             var bodyBytes = match (body) {
                 case StringBody(str) => str.toArray()
@@ -378,10 +383,10 @@ public class EventSource {
                 }
             }
             // POST request
-            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).body(bodyBytes).post().build()
+            HttpRequestBuilder().url(this.url).addHeaders(headers).body(bodyBytes).post().build()
         } else {
             // GET request
-            req = HttpRequestBuilder().url(endpoint).addHeaders(headers).get().build()
+            HttpRequestBuilder().url(this.url).addHeaders(headers).get().build()
         }
         let rsp = client.send(req)
 
@@ -446,19 +451,24 @@ public class ObseredSocket <: StreamingSocket {
     public func toString(): String {
         return socket.toString()
     }
-    public func connect(): Unit {
-        socket.connect()
+    public func connect(timeout!: Option<Duration> = None): Unit {
+        if (timeout.isSome()) {
+            socket.connect(timeout: timeout)
+        } else {
+            socket.connect()
+        }
+
     }
 }
 
 var logid = 100
 
-func log(s: ToString): Unit {    Hilog.warn(0, 'mdebug', "${s.toString()}")
+func log(s: ToString): Unit { Hilog.warn(0, 'SSE', "${s.toString()}")
     logid += 1
 }
 
 func log(s: Exception): Unit {
-    Hilog.error(0, 'mdebug', "${getStackTrace(s)}")
+    Hilog.error(0, 'SSE', "${getStackTrace(s)}")
     logid += 1
 }
 

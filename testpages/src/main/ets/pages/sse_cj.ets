@@ -232,7 +232,8 @@ export function sse_cj_post(
       clientType: 'arkts'
     })
 
-    let es = new EventSource(url, requestBody)
+    let es = new EventSource(url)
+    es.setBody(requestBody)
 
     es.onMessage((msg) => {
       count++
@@ -281,7 +282,8 @@ export function sse_cj_post_with_headers(
       clientType: 'arkts-secure'
     })
 
-    let es = new EventSource(url, requestBody)
+    let es = new EventSource(url)
+    es.setBody(requestBody)
 
     // Set custom headers
     es.setHeader('X-Auth-Token', 'my-secret-token-12345')
@@ -439,7 +441,8 @@ export function sse_cj_gzip_full(
       clientType: 'arkts-gzip-full'
     })
 
-    let es = new EventSource(testUrl, requestBody)
+    let es = new EventSource(testUrl)
+    es.setBody(requestBody)
 
     // Enable both request body compression and response decompression
     es.setRequestBodyCompressType(1)
@@ -540,7 +543,8 @@ export function sse_cj_brotli_full(
       clientType: 'arkts-brotli-full'
     })
 
-    let es = new EventSource(testUrl, requestBody)
+    let es = new EventSource(testUrl)
+    es.setBody(requestBody)
 
     // Enable both request body compression and response decompression
     es.setRequestBodyCompressType(2)
@@ -594,7 +598,8 @@ export function sse_cj_brotli_with_headers(
       clientType: 'arkts-brotli-secure'
     })
 
-    let es = new EventSource(testUrl, requestBody)
+    let es = new EventSource(testUrl)
+    es.setBody(requestBody)
 
     // Enable Brotli compression
     es.setRequestBodyCompressType(2)

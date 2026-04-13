@@ -1,6 +1,4 @@
-import { sse_cj } from "./sse_cj";
-import { sse_ets } from "./sse_ets_local";
-import { SseUrl } from "./Constants"
+import { sse_cj, sse_ets, SseUrl } from "testpages";
 
 @Entry
 @Component

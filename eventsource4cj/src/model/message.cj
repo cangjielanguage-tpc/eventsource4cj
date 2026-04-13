@@ -12,6 +12,7 @@ package eventsource4cj.model
 import std.collection.ArrayList
 import std.math.numeric.*
 import stdx.log.*
+import ohos.hilog.Hilog
 
 public struct Message {
     static let NEXT_DATA_LINE = '\n'
@@ -217,7 +218,6 @@ public class MessageBuilder {
 
     public func data(data: String): MessageBuilder {
         this._dataList.add(data)
-
         return this
     }
 
@@ -227,8 +227,11 @@ public class MessageBuilder {
 
     public static func resolve(messageBody: Array<UInt8>): Message {
         let mb = MessageBuilder()
-
-        for (line in String.fromUtf8(messageBody).lines()) {
+        if (!String.checkUtf8Encoding(messageBody)) {
+             Hilog.warn(0, 'SSE', "message is not utf8")
+            return mb.build()
+        }
+        for (line in unsafe { String.fromUtf8(messageBody) }.lines()) {
             if (line.startsWith(Message.FIELD_MARK_COLON)) {
                 mb.comment(getValue(line))
             } else if (line.startsWith(Message.FIELD_LABEL_EVENT)) {
@@ -242,7 +245,6 @@ public class MessageBuilder {
                 }
             } else if (line.startsWith(Message.FIELD_LABEL_DATA)) {
                 mb.data(getValue(line))
-            } else if (line == "") {
             } else {
                 log.warn("Unrecognized data line: ${line}")
             }
@@ -252,6 +254,6 @@ public class MessageBuilder {
     }
 
     static func getValue(messageLine: String): String {
-        return messageLine.split(Message.FIELD_MARK_COLON, 2)[1]
+        return messageLine.split(Message.FIELD_MARK_COLON, 2)[1].removePrefix(" ")
     }
 }

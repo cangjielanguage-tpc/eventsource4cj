@@ -49,6 +49,6 @@ const ServerIP = "192.168.8.8"
 
 编译ssehybrid模块：
 
-点击ssehybrid目录，点击Build - Make Module 'ssehybrid'
+点击ssehybrid目录，点击Build - Make Module 'ssehybrid'，编译成功后取ssehybrid/build/default/outputs/default/ssehybrid.har放到testpages/har
 
 编译并安装应用即可开始测试。

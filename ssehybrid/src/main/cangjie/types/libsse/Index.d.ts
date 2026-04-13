@@ -17,6 +17,8 @@ export declare class EventSource {
 
   subscribe(): Promise<void>
 
+  close(): void
+
   setHeader(name: string, value: string): void
 
   setHeaders(headers: Record<string, string>): void
@@ -42,9 +44,5 @@ export declare class EventSource {
   getAcceptCompressType(): number
 
   constructor(url: string)
-
-  constructor(url: string, body: string)
-
-  constructor(url: string, body: ArrayBuffer)
 }
 

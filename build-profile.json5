@@ -6,7 +6,7 @@
         "name": "default",
         "signingConfig": "default",
         "targetSdkVersion": "5.1.0(18)",
-        "compatibleSdkVersion": "5.1.0(18)",
+        "compatibleSdkVersion": "5.0.3(15)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
@@ -45,6 +45,10 @@
     {
       "name": "brotli",
       "srcPath": "./brotli4cj/brotli",
+    },
+    {
+      "name": "testpages",
+      "srcPath": "./testpages",
     }
   ]
 }

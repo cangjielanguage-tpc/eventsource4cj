@@ -1,0 +1,9 @@
+{
+  "module": {
+    "name": "testpages",
+    "type": "har",
+    "deviceTypes": [
+      "default"
+    ]
+  }
+}

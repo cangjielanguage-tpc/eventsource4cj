@@ -4,8 +4,8 @@ import {
   sse_cj_brotli_response,
   sse_cj_brotli_full,
   sse_cj_brotli_with_headers
-} from "./sse_cj";
-import { SseUrlGzip, SseUrlGzipFull, SseUrlBr, SseUrlBrFull } from "./Constants"
+} from "testpages";
+import { SseUrlGzip, SseUrlGzipFull, SseUrlBr, SseUrlBrFull } from "testpages"
 
 @Entry
 @Component
