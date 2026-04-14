@@ -6,7 +6,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    ssehybrid: "file:har/ssehybrid.har",
+    ssehybrid: "file:../ssehybrid",
     "@ohos/eventsource": "^2.0.3",
     "@ohos/node-polyfill": "^1.0.1"
   }

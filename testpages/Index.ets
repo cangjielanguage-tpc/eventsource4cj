@@ -7,7 +7,9 @@ export { SseUrl,
   SseUrlGzipFull,
   SseUrlBr,
   SseUrlBrFull } from './src/main/ets/pages/Constants';
-export { sse_cj,
+export {
+  sse_cj_trip,
+  sse_cj,
   sse_cj_with_header,
   sse_cj_with_headers,
   sse_cj_headers_management,

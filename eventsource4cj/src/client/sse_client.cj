@@ -18,6 +18,7 @@ import ohos.hilog.Hilog
 import std.io.InputStream
 import stdx.net.tls.*
 import std.sync.AtomicBool
+import stdx.encoding.url.URL
 
 public class EventSource {
     static const DEFAULT_BUFFER_SIZE = 1024 * 8
@@ -49,9 +50,9 @@ public class EventSource {
                 tcpSocket.noDelay = true
                 var socket = ObseredSocket(tcpSocket)
                 this.socket = socket
-                log("Socket connecting")
+                log("Socket connecting ${socket.toString()}")
                 socket.connect(timeout: connectTimeout)
-                log("Socket connected")
+                log("Socket connected ${socket.toString()}")
                 return socket
         }
         let clientBuilder = ClientBuilder().connector(TcpSocketConnector).readTimeout(readTimeout).writeTimeout(writeTimeout)
@@ -59,6 +60,9 @@ public class EventSource {
             var tlsConfig = TlsClientConfig()
             tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
             tlsConfig.alpnProtocolsList = ["h2"]
+            tlsConfig.keylogCallback = { socket, key =>
+                log("key log: ${key}")
+            }
             clientBuilder.tlsConfig(tlsConfig)
         }
         this.client = clientBuilder.build()
@@ -202,7 +206,9 @@ public class EventSource {
 
     private func getHeaders(lastMessageId: Option<String>): HttpHeaders {
         let headers = HttpHeaders()
-        headers.add("Accept", "text/event-stream")
+        if (!headers.get("accept").iterator().any { value => value == "text/event-stream" }) {
+            headers.add("accept", "text/event-stream")
+        }
         if (lastMessageId.isSome()) {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
@@ -387,7 +393,7 @@ public class EventSource {
     private func connect(lastMessageId: Option<String>): Int {
         let headers = getHeaders(lastMessageId)
 
-        let req: HttpRequest = if (let Some(body) <- this.requestBody) {
+        let requestBuilder: HttpRequestBuilder = if (let Some(body) <- this.requestBody) {
             // POST body
             var bodyBytes = match (body) {
                 case StringBody(str) => str.toArray()
@@ -400,11 +406,20 @@ public class EventSource {
                 }
             }
             // POST request
-            HttpRequestBuilder().url(this.url).addHeaders(headers).body(bodyBytes).post().build()
+            HttpRequestBuilder().url(this.url).addHeaders(headers).body(bodyBytes).post()
         } else {
             // GET request
-            HttpRequestBuilder().url(this.url).addHeaders(headers).get().build()
+            HttpRequestBuilder().url(this.url).addHeaders(headers).get()
         }
+
+        let req: HttpRequest = if (this.url.startsWith("https://")) {
+            requestBuilder.version(HTTP2_0).build()
+//            requestBuilder.build()
+        } else {
+            requestBuilder.build()
+        }
+        log("send to url ${this.url}")
+        log("send request ${req.toString()}")
         let rsp = client.send(req)
 
         return handleResponse(rsp)
@@ -480,12 +495,12 @@ public class ObseredSocket <: StreamingSocket {
 
 var logid = 100
 
-func log(s: ToString): Unit { Hilog.warn(0, 'SSE', "${s.toString()}")
+func log(s: ToString): Unit { Hilog.warn(0, 'eventsource4cj', "${s.toString()}")
     logid += 1
 }
 
 func log(s: Exception): Unit {
-    Hilog.error(0, 'SSE', "${getStackTrace(s)}")
+    Hilog.error(0, 'eventsource4cj', "${getStackTrace(s)}")
     logid += 1
 }
 

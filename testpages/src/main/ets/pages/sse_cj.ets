@@ -3,6 +3,29 @@ import hilog from '@ohos.hilog'
 import { systemDateTime } from '@kit.BasicServicesKit'
 import { NsPerMs } from './Constants'
 
+export function sse_cj_trip(
+  view: object
+): void {
+  try {
+    let url = `https://m.ctrip.com/restapi/soa2/30568/appEvents?eventid=af0eea7cb35cc88f41d53143562e2268&__gw_appid=99999999&__gw_ver=890.006&__gw_os=Harmony&__gw_platform=APP&__gw_from=native`
+    let finish = () => {
+      let msg = `cj sse trip done`
+      hilog.warn(0, 'mdebug', msg)
+      view['message'] = msg
+    }
+    let es = new EventSource(url, -1, -1, -1)
+    es.onMessage((msg) => {
+      hilog.info(0, 'mdebug', `Received: ${msg.data}`)
+    })
+    es.setExceptionHandler((e, buf) => {
+      hilog.error(0, 'mdebug', `Exception ${e}`)
+    })
+    es.subscribe()
+  } catch (e) {
+    hilog.error(0, 'mdebug', `${e} \n ${e.stack}`)
+  }
+}
+
 /**
  * Basic SSE connection (without custom headers)
  */

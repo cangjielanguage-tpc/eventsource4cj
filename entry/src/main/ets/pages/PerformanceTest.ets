@@ -1,4 +1,4 @@
-import { sse_cj, sse_ets, SseUrl } from "testpages";
+import { sse_cj, sse_ets, SseUrl, sse_cj_trip } from "testpages";
 
 @Entry
 @Component
@@ -38,6 +38,16 @@ export struct PerformanceTest {
         this.buildRow(500, 100, 100, 1)
         this.buildRow(800, 100, 100, 1)
         this.buildRow(1000, 100, 100, 1)
+        Row() {
+          Button(`cj trip`)
+            .fontSize($r('app.float.page_text_font_size'))
+            .onClick(async () => {
+              sse_cj_trip(this)
+            })
+            .width('100%')
+            .align(Alignment.Start)
+        }
+
       }
     }
     .scrollable(ScrollDirection.Vertical)
