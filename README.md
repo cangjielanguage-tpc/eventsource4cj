@@ -7,11 +7,11 @@
 修改eventsource4cj/cjpm.toml文件中的${CANGJIE_STDX_PATH}为以上文件解压的路径，或配置环境变量（可以成功编译，但会当前版本IDE代码跳转bug）。
 
 ### 1.2 三方库
-该库依赖brotli4cj库（https://gitcode.com/Cangjie-TPC/brotli4cj ）。
+该库依赖brotli4cj库（https://gitcode.host/jinmengwang/brotli4cj/tree/brotli-ffi_cangjie-plugin_5.1.1 ）。
 
 ```shell
 cd ${Project_Root_Path}
-git clone git@gitcode.com:Cangjie-TPC/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
+git clone git@gitcode.host:jinmengwang/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
 ```
 ## 2. 用例
 ### 2.1 cangjie互操作用例
