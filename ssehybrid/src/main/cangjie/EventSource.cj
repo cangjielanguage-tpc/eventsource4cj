@@ -33,20 +33,17 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         }
     }
 
-    public init(url: String, connectTimeoutMs: Int64, readTimeoutMs: Int64, writeTimeoutMs: Int64) {
-        this.cjEventSource = CJEventSource(url, connectTimeoutMs: connectTimeoutMs, readTimeoutMs: readTimeoutMs, writeTimeoutMs: writeTimeoutMs)
+    public init(url: String) {
+        this.cjEventSource = CJEventSource(url)
     }
 
     public static func jsConstructor(context: JSContext, callInfo: JSCallInfo): JSValue {
         let argCount = callInfo.count
         let url = String.fromJSValue(context, callInfo[0])
-        var connectTimeout = Int64.fromJSValue(context, callInfo[1])
-        var readTimeout = Int64.fromJSValue(context, callInfo[2])
-        var writeTimeout = Int64.fromJSValue(context, callInfo[3])
 
         JSCurrentJSContext.set(context)
         let clazz: EventSource
-        clazz = EventSource(url, connectTimeout, readTimeout, writeTimeout)
+        clazz = EventSource(url)
         JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
@@ -146,7 +143,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 context.postJSTask {
                     promise.reject(context.string(e.toString()).toJSValue())
                 }
-                Hilog.error(0, 'mdebug', getStackTrace(e))
+                Hilog.error(0, 'eventsource4cj', getStackTrace(e))
             }
         }
         JSCurrentJSContext.unset()

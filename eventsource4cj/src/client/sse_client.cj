@@ -23,13 +23,12 @@ import stdx.encoding.url.URL
 public class EventSource {
     static const DEFAULT_BUFFER_SIZE = 1024 * 8
     static let NEXT_LINE_FLAG = UInt8(b'\n')
+    static let DEFAULT_READ_TIMEOUT = Duration.day * 365 * 100
     let client: Client
     let url: String
-    let bufferSize: Int64
     let handlers = HashMap<String, (Message) -> Unit>()
     let customHeaders = HashMap<String, String>()
-    var retryInterval: Duration = Duration.millisecond * 100
-    var retryCount: Int64 = 0
+    var retry: Duration = Duration.millisecond * 10000
     var lastMessageId: Option<String> = Option.None
     var messageHandler = {_: Message =>}
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
@@ -40,34 +39,38 @@ public class EventSource {
     var closed: AtomicBool = AtomicBool(false)
     var future: Option<Future<Unit>> = Option.None
 
-    public init(url: String, connectTimeoutMs!: Int64 = -1, readTimeoutMs!: Int64 = -1, writeTimeoutMs!: Int64 = -1, bufferSize!: Int64 = DEFAULT_BUFFER_SIZE) {
-        let connectTimeout: Option<Duration> = if (connectTimeoutMs > 0 ) { Duration.millisecond * connectTimeoutMs } else { None }
-        let readTimeout: Duration = if (readTimeoutMs > 0 ) { Duration.millisecond * readTimeoutMs } else { 365 * 100 * Duration.day }
-        let writeTimeout: Duration = if (writeTimeoutMs > 0 ) { Duration.millisecond * writeTimeoutMs } else { 365 * 100 * Duration.day }
+    public init(url: String) {
+        var urlObj = URL.parse(url)
+        let realUrl = if (urlObj.scheme == "https" && urlObj.port.isEmpty()) {
+            let queryStr = if (urlObj.rawQuery.isSome()) { "?${urlObj.rawQuery.getOrThrow()}" } else { "" }
+            let fragmentStr = if (urlObj.rawFragment.isSome()) { "#${urlObj.rawFragment.getOrThrow()}" } else { "" }
+            "${urlObj.scheme}://${urlObj.hostName}:443${urlObj.rawPath}${queryStr}${fragmentStr}"
+        } else {
+            url
+        }
         let TcpSocketConnector = {
             sa: SocketAddress =>
                 var tcpSocket = TcpSocket(sa)
                 tcpSocket.noDelay = true
                 var socket = ObseredSocket(tcpSocket)
                 this.socket = socket
-                log("Socket connecting ${socket.toString()}")
-                socket.connect(timeout: connectTimeout)
+                log("Socket connecting")
+                socket.connect()
                 log("Socket connected ${socket.toString()}")
                 return socket
         }
-        let clientBuilder = ClientBuilder().connector(TcpSocketConnector).readTimeout(readTimeout).writeTimeout(writeTimeout)
+        let clientBuilder = ClientBuilder().connector(TcpSocketConnector).readTimeout(DEFAULT_READ_TIMEOUT)
         if (url.startsWith("https://")) {
             var tlsConfig = TlsClientConfig()
             tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
             tlsConfig.alpnProtocolsList = ["h2"]
-            tlsConfig.keylogCallback = { socket, key =>
-                log("key log: ${key}")
-            }
+//            tlsConfig.keylogCallback = { socket, key =>
+//                log("key log: ${key}")
+//            }
             clientBuilder.tlsConfig(tlsConfig)
         }
         this.client = clientBuilder.build()
-        this.url = url
-        this.bufferSize = bufferSize
+        this.url = realUrl
     }
 
     public func setBody(body: String): Unit {
@@ -82,10 +85,6 @@ public class EventSource {
         this.requestBody = Option.None
     }
 
-    public func setRetry(interval: Duration, count: Int64) {
-        this.retryInterval = interval
-        this.retryCount = count
-    }
     // 0: raw data, 1: gzip compressed data, 2: brotli compressed data
     public func setRequestCompressType(compress: Int64): Unit {
         if (compress == 1) {
@@ -169,31 +168,26 @@ public class EventSource {
 
     public func subscribe(): Future<Unit> {
         this.future = spawn {
-            var failCount = 0
             while (true) {
+                var stat = -1
                 try {
-                    let stat = connect(this.lastMessageId)
+                    stat = connect(this.lastMessageId)
                     if (stat == 0) {
-                        return
+                        log("connection finish")
+                        break
                     }
                 } catch (ex: Exception) {
-                    failCount++
-                    if (failCount <= this.retryCount) {
-                        log(ex)
-                        log("connect retry count ${failCount}")
-                        sleep(this.retryInterval)
-                    } else {
-                        log(ex)
-                        log("connect fail!")
-                        this.exceptionHandler(ex, [])
+                    log(ex)
+                    this.exceptionHandler(ex, [])
+                } finally {
+                    if (Thread.currentThread.hasPendingCancellation || stat == 0) {  // Check cancellation request
                         this.client.close()
-                        return
+                        log("connection closed")
+                        break
+                    } else {
+                        log("connect retry after ${this.retry}")
+                        sleep(this.retry)
                     }
-                }
-                if (Thread.currentThread.hasPendingCancellation) {  // Check cancellation request
-                    this.client.close()
-                    log("connection closed")
-                    return
                 }
             }
         }
@@ -231,17 +225,18 @@ public class EventSource {
         return headers
     }
 
-    private func checkContentType(rsp: HttpResponse): Unit {
+    private func checkContentType(rsp: HttpResponse): Bool {
         let isEventStream = rsp.headers.iterator().any({
             head => head[0].toAsciiLower() == "content-type" &&
                 head[1].iterator().at(0).getOrThrow().toAsciiLower().startsWith("text/event-stream")
         })
         if (!isEventStream) {
-            let exception = Exception("Server response type error: Content-Type is incorrect!\n${rsp.toString()}")
+            let exception = Exception("Server response error: status is ${rsp.status}!\n${rsp.toString()}")
             let data = readStreamToEnd(rsp.body)
+            log(exception.message)
             this.exceptionHandler(exception, data)
-            throw exception
         }
+        return isEventStream
     }
 
     private func getResponseCompressType(headers: HttpHeaders): Option<CompressType> {
@@ -261,7 +256,7 @@ public class EventSource {
     }
 
     private func readStreamToEnd(stream: InputStream): Array<UInt8> {
-        let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
+        let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
         let data = ArrayList<UInt8>()
         while (true) {
             var len = stream.read(buffer)
@@ -282,8 +277,7 @@ public class EventSource {
 
             // Set retry time if specified in message
             if (let Some(retry) <- message.retryInMills) {
-                this.retryInterval = Duration.millisecond * Int64(retry)
-                this.retryCount = Int64.Max
+                this.retry = Duration.millisecond * Int64(retry)
             }
 
             // Call message handler
@@ -301,11 +295,11 @@ public class EventSource {
                 this.lastMessageId = message.msgId
             }
         } catch (e: Exception) {
-            exceptionHandler(e, messageHolder.toArray())
+            log(e)
+            this.exceptionHandler(e, messageHolder.toArray())
         } finally {
             messageHolder.clear()
         }
-
     }
     private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
         // Process response stream
@@ -344,7 +338,7 @@ public class EventSource {
         // Normal non-GZIP streaming processing
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>()
-        let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
+        let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
@@ -372,13 +366,15 @@ public class EventSource {
     }
 
     private func handleResponse(rsp: HttpResponse): Int {
-        // Check content-type, if not "text/event-stream", throw exception
-        checkContentType(rsp)
+        // Check content-type, if not "text/event-stream", don't handle response
+        if (!checkContentType(rsp)) {
+            return -1
+        }
 
         // Process response stream
         let stream = rsp.body
         let messageaHolder = ArrayList<UInt8>()
-        let buffer = Array<UInt8>(this.bufferSize, {_ => 0})
+        let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
 
         // For compressed response, we need to buffer and decompress
         // Note: SSE streams are typically not compressed due to streaming nature
@@ -483,13 +479,8 @@ public class ObseredSocket <: StreamingSocket {
     public func toString(): String {
         return socket.toString()
     }
-    public func connect(timeout!: Option<Duration> = None): Unit {
-        if (timeout.isSome()) {
-            socket.connect(timeout: timeout)
-        } else {
-            socket.connect()
-        }
-
+    public func connect(): Unit {
+        socket.connect()
     }
 }
 
