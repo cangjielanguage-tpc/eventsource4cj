@@ -32,6 +32,8 @@ public class EventSource {
     var lastMessageId: Option<String> = Option.None
     var messageHandler = {_: Message =>}
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
+    var onOpenHandler = {_: String =>}
+    var onOpenFired = false
     var socket: ?ObseredSocket = None
     var requestBody: Option<RequestBody> = Option.None
     var requestBodyCompressType: Option<CompressType> = Option.None
@@ -166,6 +168,10 @@ public class EventSource {
         handlers.add(event, listener)
     }
 
+    public func onOpen(handler: (String) -> Unit): Unit {
+        this.onOpenHandler = handler
+    }
+
     public func subscribe(): Future<Unit> {
         this.future = spawn {
             while (true) {
@@ -186,6 +192,7 @@ public class EventSource {
                         break
                     } else {
                         log("connect retry after ${this.retry}")
+                        this.onOpenFired = false
                         sleep(this.retry)
                     }
                 }
@@ -253,6 +260,27 @@ public class EventSource {
         } else {
             None
         }
+    }
+
+    private func headersToJsonString(headers: HttpHeaders): String {
+        var json = "{"
+        let iter = headers.iterator()
+        var first = true
+        var next = iter.next()
+        while (next.isSome()) {
+            let item = next.getOrThrow()
+            let name = item[0]
+            let values = item[1].iterator() |> collectString(delimiter: ",")
+            if (!first) {
+                json += ","
+            } else {
+                first = false
+            }
+            json += "\"${name}\":\"${values}\""
+            next = iter.next()
+        }
+        json += "}"
+        return json
     }
 
     private func readStreamToEnd(stream: InputStream): Array<UInt8> {
@@ -369,6 +397,12 @@ public class EventSource {
         // Check content-type, if not "text/event-stream", don't handle response
         if (!checkContentType(rsp)) {
             return -1
+        }
+
+        // Fire onOpen callback only once on first successful SSE response
+        if (!this.onOpenFired) {
+            this.onOpenFired = true
+            this.onOpenHandler(headersToJsonString(rsp.headers))
         }
 
         // Process response stream

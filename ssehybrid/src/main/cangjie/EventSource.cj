@@ -19,6 +19,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 clazz.addMethod("setExceptionHandler", context.function(setExceptionHandler_ArkTS_Interop_Identifier))
                 clazz.addMethod("onMessage", context.function(onMessage_ArkTS_Interop_Identifier))
                 clazz.addMethod("onEvent", context.function(onEvent_ArkTS_Interop_Identifier))
+                clazz.addMethod("onOpen", context.function(onOpen_ArkTS_Interop_Identifier))
                 clazz.addMethod("setHeader", context.function(setHeader_ArkTS_Interop_Identifier))
                 clazz.addMethod("setHeaders", context.function(setHeaders_ArkTS_Interop_Identifier))
                 clazz.addMethod("removeHeader", context.function(removeHeader_ArkTS_Interop_Identifier))
@@ -117,6 +118,29 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
             }
         }
         let RET = clazz.onEvent(event, handlerWrapper)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
+    public func onOpen(handler: (String) -> Unit): Unit {
+        cjEventSource.onOpen(handler)
+    }
+    public static func onOpen_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let jsHandler = callInfo[0].asFunction()
+        let handlerWrapper: (String) -> Unit = {
+            responseHeaders: String => context.postJSTask {
+                jsHandler.call(
+                    context.string(responseHeaders).toJSValue()
+                )
+            }
+        }
+        let RET = clazz.onOpen(handlerWrapper)
         JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
@@ -359,6 +383,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj["setExceptionHandler"] = context.function(setExceptionHandler_ArkTS_Interop_Identifier).toJSValue()
         obj["onMessage"] = context.function(onMessage_ArkTS_Interop_Identifier).toJSValue()
         obj["onEvent"] = context.function(onEvent_ArkTS_Interop_Identifier).toJSValue()
+        obj["onOpen"] = context.function(onOpen_ArkTS_Interop_Identifier).toJSValue()
         obj["setHeader"] = context.function(setHeader_ArkTS_Interop_Identifier).toJSValue()
         obj["setHeaders"] = context.function(setHeaders_ArkTS_Interop_Identifier).toJSValue()
         obj["removeHeader"] = context.function(removeHeader_ArkTS_Interop_Identifier).toJSValue()

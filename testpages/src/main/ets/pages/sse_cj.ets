@@ -15,6 +15,9 @@ export function sse_cj_trip(
       view['message'] = msg
     }
     let es = new EventSource(url)
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
     })
@@ -53,6 +56,9 @@ export function sse_cj(
       view['message'] = msg
     }
     let es = new EventSource(url)
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       // hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -101,6 +107,9 @@ export function sse_cj_with_header(
     es.setHeader('X-Auth-Token', 'my-secret-token-12345')
     es.setHeader('X-Client-Id', 'arkts-client-001')
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -151,6 +160,9 @@ export function sse_cj_with_headers(
       'X-Custom-Data': 'custom-value'
     })
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -209,6 +221,9 @@ export function sse_cj_headers_management(
       'X-Api-Key': 'valid-api-key-12345'
     })
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -259,6 +274,9 @@ export function sse_cj_post(
     let es = new EventSource(url)
     es.setBody(requestBody)
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -314,6 +332,9 @@ export function sse_cj_post_with_headers(
     es.setHeader('X-Client-Id', 'arkts-post-client')
     es.setHeader('Content-Type', 'application/json')
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -371,6 +392,9 @@ export function sse_cj_post_body_management(
     es.setBody(JSON.stringify({ step: 4, data: 'final', timestamp: new Date().toISOString() }))
     hilog.info(0, 'mdebug', 'Step 4: Set body again for POST request')
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Received: ${msg.data}`)
@@ -418,6 +442,9 @@ export function sse_cj_gzip_response(
     es.setAcceptCompressType(1)
     hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}`)
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `GZIP Response: ${msg.data}`)
@@ -473,6 +500,9 @@ export function sse_cj_gzip_full(
     es.setAcceptCompressType(1)
     hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}, request compress: ${es.getRequestBodyCompressType()}`)
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `GZIP Full: ${msg.data}`)
@@ -520,6 +550,9 @@ export function sse_cj_brotli_response(
     es.setAcceptCompressType(2)
     hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}`)
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Brotli Response: ${msg.data}`)
@@ -575,6 +608,9 @@ export function sse_cj_brotli_full(
     es.setAcceptCompressType(2)
     hilog.info(0, 'mdebug', `Accept response decompression: ${es.getAcceptCompressType()}, request compress: ${es.getRequestBodyCompressType()}`)
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Brotli Full: ${msg.data}`)
@@ -634,6 +670,9 @@ export function sse_cj_brotli_with_headers(
     es.setHeader('X-Client-Id', 'arkts-brotli-client')
     es.setHeader('Content-Type', 'application/json')
 
+    es.onOpen((headers) => {
+      hilog.info(0, 'mdebug', `onOpen: ${headers}`)
+    })
     es.onMessage((msg) => {
       count++
       hilog.info(0, 'mdebug', `Brotli with headers: ${msg.data}`)

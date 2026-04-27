@@ -13,6 +13,8 @@ export declare class EventSource {
 
   onEvent(event: string, handler: (msg: Message) => void): void
 
+  onOpen(handler: (responseHeaders: string) => void): void
+
   setExceptionHandler(handler: (exception: string, buffer: ArrayBuffer) => void): void
 
   subscribe(): Promise<void>

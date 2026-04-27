@@ -1,4 +1,4 @@
-const ServerIP = "192.168.8.44"
+const ServerIP = "192.168.8.17"
 export const SseUrl = `http://${ServerIP}:9000/sse/range`;
 export const SseUrlSecure = `http://${ServerIP}:9000/sse/secure/range`;
 export const SseUrlPost = `http://${ServerIP}:9000/sse/post/range`;
