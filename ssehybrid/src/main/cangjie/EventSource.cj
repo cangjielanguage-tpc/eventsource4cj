@@ -15,9 +15,11 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
             context =>
                 let clazz = context.clazz(jsConstructor)
                 clazz.addMethod("subscribe", context.function(subscribe_ArkTS_Interop_Identifier))
+                clazz.addMethod("close", context.function(close_ArkTS_Interop_Identifier))
                 clazz.addMethod("setExceptionHandler", context.function(setExceptionHandler_ArkTS_Interop_Identifier))
                 clazz.addMethod("onMessage", context.function(onMessage_ArkTS_Interop_Identifier))
                 clazz.addMethod("onEvent", context.function(onEvent_ArkTS_Interop_Identifier))
+                clazz.addMethod("onOpen", context.function(onOpen_ArkTS_Interop_Identifier))
                 clazz.addMethod("setHeader", context.function(setHeader_ArkTS_Interop_Identifier))
                 clazz.addMethod("setHeaders", context.function(setHeaders_ArkTS_Interop_Identifier))
                 clazz.addMethod("removeHeader", context.function(removeHeader_ArkTS_Interop_Identifier))
@@ -36,35 +38,13 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         this.cjEventSource = CJEventSource(url)
     }
 
-    public init(url: String, body: String) {
-        this.cjEventSource = CJEventSource(url, body)
-    }
-
-    public init(url: String, body: Array<UInt8>) {
-        this.cjEventSource = CJEventSource(url, body)
-    }
-
     public static func jsConstructor(context: JSContext, callInfo: JSCallInfo): JSValue {
         let argCount = callInfo.count
         let url = String.fromJSValue(context, callInfo[0])
 
         JSCurrentJSContext.set(context)
         let clazz: EventSource
-        if (argCount >= 2) {
-            // Check if second argument is String or ArrayBuffer
-            let jsBody = callInfo[1]
-            if (jsBody.isString()) {
-                let body = String.fromJSValue(context, jsBody)
-                clazz = EventSource(url, body)
-            } else {
-                // Treat as ArrayBuffer/Uint8Array
-                let buffer = jsBody.asArrayBuffer()
-                let body = buffer.readBytes()
-                clazz = EventSource(url, body)
-            }
-        } else {
-            clazz = EventSource(url)
-        }
+        clazz = EventSource(url)
         JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
@@ -142,6 +122,29 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         return RET.toJSValue(context)
     }
 
+    public func onOpen(handler: (String) -> Unit): Unit {
+        cjEventSource.onOpen(handler)
+    }
+    public static func onOpen_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let jsHandler = callInfo[0].asFunction()
+        let handlerWrapper: (String) -> Unit = {
+            responseHeaders: String => context.postJSTask {
+                jsHandler.call(
+                    context.string(responseHeaders).toJSValue()
+                )
+            }
+        }
+        let RET = clazz.onOpen(handlerWrapper)
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
+    }
+
     public func subscribe(): Future<Unit> {
         return cjEventSource.subscribe()
     }
@@ -164,11 +167,26 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
                 context.postJSTask {
                     promise.reject(context.string(e.toString()).toJSValue())
                 }
-                Hilog.error(0, 'mdebug', getStackTrace(e))
+                Hilog.error(0, 'eventsource4cj', getStackTrace(e))
             }
         }
         JSCurrentJSContext.unset()
         return promise.toJSValue()
+    }
+
+    public func close(): Unit {
+        return cjEventSource.close()
+    }
+    public static func close_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
+        let thisArg = callInfo.thisArg
+        let thisObject = thisArg.asObject()
+        let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
+        let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
+
+        JSCurrentJSContext.set(context)
+        let RET = clazz.close()
+        JSCurrentJSContext.unset()
+        return RET.toJSValue(context)
     }
 
     public func setHeader(name: String, value: String): Unit {
@@ -365,6 +383,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj["setExceptionHandler"] = context.function(setExceptionHandler_ArkTS_Interop_Identifier).toJSValue()
         obj["onMessage"] = context.function(onMessage_ArkTS_Interop_Identifier).toJSValue()
         obj["onEvent"] = context.function(onEvent_ArkTS_Interop_Identifier).toJSValue()
+        obj["onOpen"] = context.function(onOpen_ArkTS_Interop_Identifier).toJSValue()
         obj["setHeader"] = context.function(setHeader_ArkTS_Interop_Identifier).toJSValue()
         obj["setHeaders"] = context.function(setHeaders_ArkTS_Interop_Identifier).toJSValue()
         obj["removeHeader"] = context.function(removeHeader_ArkTS_Interop_Identifier).toJSValue()

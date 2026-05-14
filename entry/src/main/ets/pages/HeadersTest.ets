@@ -1,5 +1,8 @@
-import { sse_cj_headers_management, sse_cj_with_header, sse_cj_with_headers } from "./sse_cj";
-import { SseUrlSecure } from "./Constants"
+import { sse_cj_headers_management,
+  sse_cj_with_header,
+  sse_cj_with_headers
+} from "testpages";
+import { SseUrlSecure } from "testpages"
 
 @Entry
 @Component

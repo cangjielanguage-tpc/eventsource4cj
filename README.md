@@ -1,8 +1,17 @@
-## 1. 依赖
-该库依赖brotli4cj库（https://gitcode.com/Cangjie-TPC/brotli4cj）
+## 1 依赖
+### 1.1 stdx
+该库依赖stdx中的包（https://gitcode.com/Cangjie/cangjie-stdx-bin/releases ）。
+
+下载最新版本并解压（cangjie-stdx-ohos-aarch64-1.0.1.1.zip，cangjie-stdx-ohos-x64-1.0.1.1.zip）。
+
+修改eventsource4cj/cjpm.toml文件中的${CANGJIE_STDX_PATH}为以上文件解压的路径，或配置环境变量（可以成功编译，但会当前版本IDE代码跳转bug）。
+
+### 1.2 三方库
+该库依赖brotli4cj库（https://gitcode.host/jinmengwang/brotli4cj/tree/brotli-ffi_cangjie-plugin_5.1.1 ）。
+
 ```shell
 cd ${Project_Root_Path}
-git clone git@gitcode.com:Cangjie-TPC/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
+git clone git@gitcode.host:jinmengwang/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
 ```
 ## 2. 用例
 ### 2.1 cangjie互操作用例
@@ -32,4 +41,14 @@ entry/src/main/ets/pages/Constants.ets
 const ServerIP = "192.168.8.8"
 ```
 
-编译并安装到手机上执行测试用例
+## 5. 编译
+
+编译brotli模块：
+
+点击brotli4cj/brotli目录，点击Build - Make Module 'brotli'
+
+编译ssehybrid模块：
+
+点击ssehybrid目录，点击Build - Make Module 'ssehybrid'，编译成功后取ssehybrid/build/default/outputs/default/ssehybrid.har放到testpages/har
+
+编译并安装应用即可开始测试。

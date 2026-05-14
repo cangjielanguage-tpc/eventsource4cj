@@ -6,9 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "ssehybrid": "file:../ssehybrid",
-    "@ohos/eventsource": "^2.0.3",
-    "@ohos/node-polyfill": "^1.0.1"
+    "testpages": "file:../testpages",
   },
   "devDependencies": {},
   "dynamicDependencies": {}

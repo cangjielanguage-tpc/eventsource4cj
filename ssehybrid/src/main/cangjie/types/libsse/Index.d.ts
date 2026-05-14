@@ -13,9 +13,13 @@ export declare class EventSource {
 
   onEvent(event: string, handler: (msg: Message) => void): void
 
+  onOpen(handler: (responseHeaders: string) => void): void
+
   setExceptionHandler(handler: (exception: string, buffer: ArrayBuffer) => void): void
 
   subscribe(): Promise<void>
+
+  close(): void
 
   setHeader(name: string, value: string): void
 
@@ -41,10 +45,7 @@ export declare class EventSource {
 
   getAcceptCompressType(): number
 
+  // xxxxTimeoutMs: -1 means do not set timeout
   constructor(url: string)
-
-  constructor(url: string, body: string)
-
-  constructor(url: string, body: ArrayBuffer)
 }
 

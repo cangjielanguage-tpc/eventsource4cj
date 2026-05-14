@@ -1,6 +1,7 @@
-import EventSource from "./eventsource";
+import EventSource from "@ohos/eventsource";
 import hilog from "@ohos.hilog";
 import { systemDateTime } from "@kit.BasicServicesKit";
+import { NsPerMs } from "./Constants";
 
 export function sse_ets(
   view: object,
@@ -18,8 +19,8 @@ export function sse_ets(
     let count = 0
     let t0 = systemDateTime.getTime(true)
     let finish = () => {
-      let time = systemDateTime.getTime(true) - t0
-      let msg = `ets sse done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / count} ns/op`
+      let time = (systemDateTime.getTime(true) - t0) / NsPerMs
+      let msg = `ets sse done, ${datasize} ${page}*${range}=${max} ${count} ${interval}, time: ${time / range} ms/range`
       hilog.error(0, 'mdebug', msg)
       view['message'] = msg
     }
