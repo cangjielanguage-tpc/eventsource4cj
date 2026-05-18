@@ -24,3 +24,5 @@ node_modules
 IDL_Custom_Type_Whitelist~
 IDL_Dependencies_List~
 *.macrocall
+/brotli4cj
+/stdx_bin
