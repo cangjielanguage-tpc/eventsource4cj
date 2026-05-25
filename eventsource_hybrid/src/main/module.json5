@@ -1,6 +1,6 @@
 {
   "module": {
-    "name": "ssehybrid",
+    "name": "eventsource_hybrid",
     "type": "har",
     "deviceTypes": [
       "default"

@@ -1,6 +1,6 @@
 {
   "module": {
-    "name": "ssehybrid_test",
+    "name": "eventsource_hybrid_test",
     "type": "feature",
     "deviceTypes": [
       "default"
