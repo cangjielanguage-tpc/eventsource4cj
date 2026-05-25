@@ -1,4 +1,4 @@
-import { EventSource } from 'ssehybrid'
+import { EventSource } from '@cangjie-tpc/eventsource_hybrid'
 import hilog from '@ohos.hilog'
 import { systemDateTime } from '@kit.BasicServicesKit'
 import { NsPerMs } from './Constants'

@@ -39,8 +39,8 @@
       ]
     },
     {
-      "name": "ssehybrid",
-      "srcPath": "./ssehybrid",
+      "name": "eventsource_hybrid",
+      "srcPath": "./eventsource_hybrid"
     },
     {
       "name": "brotli",
