@@ -17,6 +17,8 @@ import std.net.*
 import std.io.InputStream
 import stdx.net.tls.*
 import std.sync.AtomicBool
+import std.sync.Mutex
+import std.sync.Condition
 import stdx.encoding.url.URL
 
 public class EventSource {
@@ -39,6 +41,8 @@ public class EventSource {
     var acceptCompressTypes: Array<CompressType> = []
     var closed: AtomicBool = AtomicBool(false)
     var future: Option<Future<Unit>> = Option.None
+    let mutex = Mutex()
+    let condition: Condition
 
     public init(url: String) {
         var urlObj = URL.parse(url)
@@ -71,6 +75,9 @@ public class EventSource {
         }
         this.client = clientBuilder.build()
         this.url = realUrl
+        this.mutex.lock()
+        this.condition = mutex.condition()
+        this.mutex.unlock()
     }
 
     public func setBody(body: String): Unit {
@@ -171,8 +178,11 @@ public class EventSource {
     }
 
     public func subscribe(): Future<Unit> {
+        if (closed.load()) {
+            throw IllegalStateException("EventSource already closed")
+        }
         this.future = spawn {
-            while (true) {
+            while (!closed.load()) {
                 var stat = -1
                 try {
                     stat = connect(this.lastMessageId)
@@ -184,14 +194,16 @@ public class EventSource {
                     log(ex)
                     this.exceptionHandler(ex)
                 } finally {
-                    if (Thread.currentThread.hasPendingCancellation || stat == 0) {  // Check cancellation request
+                    if (closed.load() || stat == 0) {
                         this.client.close()
                         log("connection closed")
                         break
                     } else {
                         log("connect retry after ${this.retry}")
                         this.onOpenFired = false
-                        sleep(this.retry)
+                        mutex.lock()
+                        condition.wait(timeout: this.retry)
+                        mutex.unlock()
                     }
                 }
             }
@@ -200,7 +212,14 @@ public class EventSource {
     }
 
     public func close(): Unit {
-        this.future?.cancel()
+        closed.store(true)
+        mutex.lock()
+        condition.notifyAll()
+        mutex.unlock()
+        // Close the underlying socket to interrupt blocking stream.read()
+        if (let Some(socket) <- this.socket) {
+            socket.close()
+        }
     }
 
     private func getHeaders(lastMessageId: Option<String>): HttpHeaders {
