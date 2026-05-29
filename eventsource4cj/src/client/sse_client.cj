@@ -14,7 +14,6 @@ import eventsource4cj.util.*
 import std.collection.*
 import stdx.net.http.*
 import std.net.*
-import ohos.hilog.Hilog
 import std.io.InputStream
 import stdx.net.tls.*
 import std.sync.AtomicBool
@@ -44,9 +43,8 @@ public class EventSource {
     public init(url: String) {
         var urlObj = URL.parse(url)
         let realUrl = if (urlObj.scheme == "https" && urlObj.port.isEmpty()) {
-            let queryStr = if (urlObj.rawQuery.isSome()) { "?${urlObj.rawQuery.getOrThrow()}" } else { "" }
-            let fragmentStr = if (urlObj.rawFragment.isSome()) { "#${urlObj.rawFragment.getOrThrow()}" } else { "" }
-            "${urlObj.scheme}://${urlObj.hostName}:443${urlObj.rawPath}${queryStr}${fragmentStr}"
+            urlObj.replace(port: "443")
+            urlObj.toString()
         } else {
             url
         }
@@ -184,7 +182,7 @@ public class EventSource {
                     }
                 } catch (ex: Exception) {
                     log(ex)
-                    this.exceptionHandler(ex, [])
+                    this.exceptionHandler(ex)
                 } finally {
                     if (Thread.currentThread.hasPendingCancellation || stat == 0) {  // Check cancellation request
                         this.client.close()
@@ -329,10 +327,29 @@ public class EventSource {
             messageHolder.clear()
         }
     }
+
+    private func processByte(byte: UInt8, messageHolder: ArrayList<UInt8>): Unit {
+        if (byte != NEXT_LINE_FLAG) {
+            messageHolder.add(byte)
+            return
+        }
+
+        let lastByte = messageHolder.get(messageHolder.size - 1)
+        if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
+            messageHolder.add(byte)
+            return
+        }
+
+        // Complete message cached
+        messageHolder.add(byte)
+        handleMessage(messageHolder)
+        return
+    }
+
     private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
         // Process response stream
         let stream = rsp.body
-        let messageaHolder = ArrayList<UInt8>()
+        let messageHolder = ArrayList<UInt8>()
         // Buffer the entire response for decompression
         let compressBuffer = readStreamToEnd(stream)
 
@@ -344,20 +361,7 @@ public class EventSource {
 
         // Process decompressed data
         for (byte in decompressed) {
-            if (byte != NEXT_LINE_FLAG) {
-                messageaHolder.add(byte)
-                continue
-            }
-
-            let lastByte = messageaHolder.get(messageaHolder.size - 1)
-            if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
-                messageaHolder.add(byte)
-                continue
-            }
-
-            // Complete message cached
-            messageaHolder.add(byte)
-            handleMessage(messageaHolder)
+            processByte(byte, messageHolder)
         }
         return 0
     }
@@ -365,7 +369,7 @@ public class EventSource {
     private func handleNoCompressResponse(rsp: HttpResponse): Int {
         // Normal non-GZIP streaming processing
         let stream = rsp.body
-        let messageaHolder = ArrayList<UInt8>()
+        let messageHolder = ArrayList<UInt8>()
         let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
         while (true) {
             var len = stream.read(buffer)
@@ -373,21 +377,7 @@ public class EventSource {
                 return 0 // Chunked stream ended, connection closed
             }
             for (byte in buffer[0..len]) {
-                if (byte != NEXT_LINE_FLAG) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                let lastByte = messageaHolder.get(messageaHolder.size - 1)
-
-                if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                // Complete message cached
-                messageaHolder.add(byte)
-                handleMessage(messageaHolder)
+                processByte(byte, messageHolder)
             }
         }
         return -1
@@ -406,9 +396,9 @@ public class EventSource {
         }
 
         // Process response stream
-        let stream = rsp.body
-        let messageaHolder = ArrayList<UInt8>()
-        let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
+        // let stream = rsp.body
+        let messageHolder = ArrayList<UInt8>()
+        // let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
 
         // For compressed response, we need to buffer and decompress
         // Note: SSE streams are typically not compressed due to streaming nature
@@ -457,6 +447,9 @@ public class EventSource {
 }
 
 public class ObseredSocket <: StreamingSocket {
+    public let socket_string_read = StringBuilder()
+    public let socket_string_write = StringBuilder()
+
     ObseredSocket(let socket: TcpSocket) {
         socket_string_read.reset()
         socket_string_write.reset()
@@ -487,8 +480,7 @@ public class ObseredSocket <: StreamingSocket {
             socket.writeTimeout = value
         }
     }
-    public static let socket_string_read = StringBuilder()
-    public static let socket_string_write = StringBuilder()
+
     public func read(buffer: Array<UInt8>): Int64 {
         let len = socket.read(buffer)
         if (String.checkUtf8Encoding(buffer)) {
@@ -515,30 +507,5 @@ public class ObseredSocket <: StreamingSocket {
     }
     public func connect(): Unit {
         socket.connect()
-    }
-}
-
-var logid = 100
-
-func log(s: ToString): Unit { Hilog.warn(0, 'eventsource4cj', "${s.toString()}")
-    logid += 1
-}
-
-func log(s: Exception): Unit {
-    Hilog.error(0, 'eventsource4cj', "${getStackTrace(s)}")
-    logid += 1
-}
-
-func getStackTrace(thrown: ?Exception): String {
-    var res: String = ""
-    match (thrown) {
-        case None => return res
-        case Some(v) =>
-            res = "\n${v.toString()}\n"
-            var arr = v.getStackTrace()
-            for (line in arr) {
-                res += "      at ${line.declaringClass}.${line.methodName}(${line.fileName}:${line.lineNumber})\n"
-            }
-            return res
     }
 }
