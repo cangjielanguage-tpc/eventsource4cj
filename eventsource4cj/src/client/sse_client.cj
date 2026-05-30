@@ -39,6 +39,7 @@ public class EventSource {
     var requestBody: Option<RequestBody> = Option.None
     var requestBodyCompressType: Option<CompressType> = Option.None
     var acceptCompressTypes: Array<CompressType> = []
+    var lastByteWasNewline: Bool = false
     var closed: AtomicBool = AtomicBool(false)
     var future: Option<Future<Unit>> = Option.None
     let mutex = Mutex()
@@ -308,16 +309,15 @@ public class EventSource {
             if (len == 0) {
                 break
             }
-            for (byte in buffer[0..len]) {
-                data.add(byte)
-            }
+            data.add(all: buffer[0..len])
         }
         return data.toArray()
     }
 
     private func handleMessage(messageHolder: ArrayList<UInt8>): Unit {
+        // Convert to array only once, used in both normal and exception paths
+        let msg = messageHolder.toArray()
         try {
-            let msg = messageHolder.toArray()
             let message = MessageBuilder.resolve(msg)
 
             // Set retry time if specified in message
@@ -341,34 +341,51 @@ public class EventSource {
             }
         } catch (e: Exception) {
             log(e)
-            this.exceptionHandler(e, messageHolder.toArray())
+            this.exceptionHandler(e, msg)
         } finally {
             messageHolder.clear()
         }
     }
 
-    private func processByte(byte: UInt8, messageHolder: ArrayList<UInt8>): Unit {
-        if (byte != NEXT_LINE_FLAG) {
-            messageHolder.add(byte)
-            return
+    private func processBytes(bytes: Array<UInt8>, len: Int64, messageHolder: ArrayList<UInt8>): Unit {
+        // Scan for newline positions to batch non-\n segments
+        var segStart = 0
+        for (i in 0..len) {
+            let byte = bytes[i]
+            if (byte == NEXT_LINE_FLAG) {
+                // Append batch of non-\n bytes before this \n
+                if (i > segStart) {
+                    messageHolder.add(all: bytes[segStart..i])
+                }
+                // Add the \n byte first
+                messageHolder.add(NEXT_LINE_FLAG)
+                // Check if previous byte was also \n (double \n = message boundary)
+                if (this.lastByteWasNewline) {
+                    // Complete message: two consecutive \n
+                    handleMessage(messageHolder)
+                    // After handleMessage, holder is cleared, next \n is a new "first \n"
+                    this.lastByteWasNewline = false
+                } else {
+                    // This is the first \n, mark it for next boundary check
+                    this.lastByteWasNewline = true
+                }
+                segStart = i + 1
+            } else {
+                this.lastByteWasNewline = false
+            }
         }
-
-        let lastByte = messageHolder.get(messageHolder.size - 1)
-        if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
-            messageHolder.add(byte)
-            return
+        // Append remaining non-\n bytes at end of chunk
+        if (len > Int64(segStart)) {
+            messageHolder.add(all: bytes[segStart..len])
+            this.lastByteWasNewline = false
         }
-
-        // Complete message cached
-        messageHolder.add(byte)
-        handleMessage(messageHolder)
-        return
     }
 
     private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
         // Process response stream
         let stream = rsp.body
         let messageHolder = ArrayList<UInt8>()
+        this.lastByteWasNewline = false
         // Buffer the entire response for decompression
         let compressBuffer = readStreamToEnd(stream)
 
@@ -378,10 +395,8 @@ public class EventSource {
             case Brotli => BrotliUtil.decompress(compressBuffer)
         }
 
-        // Process decompressed data
-        for (byte in decompressed) {
-            processByte(byte, messageHolder)
-        }
+        // Process decompressed data as batch
+        processBytes(decompressed, Int64(decompressed.size), messageHolder)
         return 0
     }
 
@@ -389,15 +404,14 @@ public class EventSource {
         // Normal non-GZIP streaming processing
         let stream = rsp.body
         let messageHolder = ArrayList<UInt8>()
+        this.lastByteWasNewline = false
         let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
                 return 0 // Chunked stream ended, connection closed
             }
-            for (byte in buffer[0..len]) {
-                processByte(byte, messageHolder)
-            }
+            processBytes(buffer, len, messageHolder)
         }
         return -1
     }
