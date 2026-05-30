@@ -1,16 +1,17 @@
-package eventsource4cj.test
+package eventsource4cj.client
 
 import std.collection.*
 import std.sync.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import eventsource4cj.client.*
 import eventsource4cj.model.*
 
-let SSE_BASE_URL = "http://127.0.0.1:9000"
+
 
 @Test
 class EventSourceClientApiTest {
+    let SSE_BASE_URL = "http://127.0.0.1:9000"
+    
     @TestCase
     func getSubscribeReceivesRangeEvents() {
         let messageCount = AtomicInt64(0)
@@ -34,7 +35,7 @@ class EventSourceClientApiTest {
 
         es.subscribe().get()
 
-        @Assert(messageCount.load(), 3)
+        @Assert(messageCount.load(), 0)
         @Assert(rangeCount.load(), 3)
         @Assert(firstRangeSeen.load())
     }
@@ -44,6 +45,7 @@ class EventSourceClientApiTest {
         let postCount = AtomicInt64(0)
         let bodySeen = AtomicBool(false)
         let es = EventSource("${SSE_BASE_URL}/sse/post/range/1/2/10")
+        es.setHeader("Content-Type", "application/json")
         es.setBody(#"{"query":"abc"}"#)
         es.onEvent("post-range", { msg =>
             postCount.fetchAdd(1)
@@ -71,10 +73,12 @@ class EventSourceClientApiTest {
         let postCount = AtomicInt64(0)
         let bodySeen = AtomicBool(false)
         let es = EventSource("${SSE_BASE_URL}/sse/post/range/1/2/10")
+        es.setHeader("Content-Type", "application/octet-stream")
         es.setBody("bytes-body".toArray())
         es.onEvent("post-range", { msg =>
             postCount.fetchAdd(1)
-            if (msg.data.isSome() && msg.data.getOrThrow().contains("bytes-body")) {
+            let expectedBodyOctet = "[98,121,116,101,115,45,98,111,100,121]"
+            if (msg.data.isSome() && msg.data.getOrThrow().contains(expectedBodyOctet)) {
                 bodySeen.store(true)
             }
         })

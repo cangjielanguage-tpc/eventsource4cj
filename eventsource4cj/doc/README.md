@@ -356,7 +356,38 @@ es.onMessage({ msg =>
 es.subscribe()
 ```
 
-#### 2.8 完整示例
+#### 2.8 关闭连接
+
+##### 2.8.1 主要接口
+
+```cangjie
+public class EventSource {
+    /*
+     * 关闭 SSE 连接。
+     * 设置关闭标志和唤醒重试等待线程，关闭底层 socket 连接，
+     * 使阻塞的 stream.read() 立即返回，Future 立即完成。
+     */
+    public func close(): Unit
+}
+```
+
+##### 2.8.2 示例
+
+代码如下：
+
+```cangjie
+import eventsource4cj.client.EventSource
+
+let persistentEs = new EventSource("http://localhost:9000/sse/range/1/1000/500")
+persistentEs.onMessage({ msg => println(msg.data) })
+let future = persistentEs.subscribe()
+// 关闭连接，断开 socket，Future 立即完成
+sleep(Duration.millisecond * 5000)
+persistentEs.close()
+future.get() // Future 立即完成
+```
+
+#### 2.9 完整示例
 
 以下示例演示使用 Brotli 压缩请求体并携带自定义请求头的 POST 请求：
 
@@ -399,9 +430,9 @@ Brotli msg 2: 5-2|body:{"query":"secure brotli data","clientType":"arkts"}
 ...
 ```
 
-#### 2.9 公共属性
+#### 2.10 公共属性
 
-##### 2.9.1 主要接口
+##### 2.10.1 主要接口
 
 ```cangjie
 public class EventSource {
@@ -413,7 +444,7 @@ public class EventSource {
 }
 ```
 
-##### 2.9.2 示例
+##### 2.10.2 示例
 
 代码如下：
 

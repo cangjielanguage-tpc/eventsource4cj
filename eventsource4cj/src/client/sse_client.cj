@@ -14,10 +14,11 @@ import eventsource4cj.util.*
 import std.collection.*
 import stdx.net.http.*
 import std.net.*
-import ohos.hilog.Hilog
 import std.io.InputStream
 import stdx.net.tls.*
 import std.sync.AtomicBool
+import std.sync.Mutex
+import std.sync.Condition
 import stdx.encoding.url.URL
 
 public class EventSource {
@@ -38,15 +39,17 @@ public class EventSource {
     var requestBody: Option<RequestBody> = Option.None
     var requestBodyCompressType: Option<CompressType> = Option.None
     var acceptCompressTypes: Array<CompressType> = []
+    var lastByteWasNewline: Bool = false
     var closed: AtomicBool = AtomicBool(false)
     var future: Option<Future<Unit>> = Option.None
+    let mutex = Mutex()
+    let condition: Condition
 
     public init(url: String) {
         var urlObj = URL.parse(url)
-        let realUrl = if (urlObj.scheme == "https" && urlObj.port.isEmpty()) {
-            let queryStr = if (urlObj.rawQuery.isSome()) { "?${urlObj.rawQuery.getOrThrow()}" } else { "" }
-            let fragmentStr = if (urlObj.rawFragment.isSome()) { "#${urlObj.rawFragment.getOrThrow()}" } else { "" }
-            "${urlObj.scheme}://${urlObj.hostName}:443${urlObj.rawPath}${queryStr}${fragmentStr}"
+        this.url = if (urlObj.scheme == "https" && urlObj.port.isEmpty()) {
+            urlObj.replace(port: "443")
+            urlObj.toString()
         } else {
             url
         }
@@ -66,13 +69,12 @@ public class EventSource {
             var tlsConfig = TlsClientConfig()
             tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
             tlsConfig.alpnProtocolsList = ["h2"]
-//            tlsConfig.keylogCallback = { socket, key =>
-//                log("key log: ${key}")
-//            }
             clientBuilder.tlsConfig(tlsConfig)
         }
         this.client = clientBuilder.build()
-        this.url = realUrl
+        this.mutex.lock()
+        this.condition = mutex.condition()
+        this.mutex.unlock()
     }
 
     public func setBody(body: String): Unit {
@@ -173,8 +175,11 @@ public class EventSource {
     }
 
     public func subscribe(): Future<Unit> {
+        if (closed.load()) {
+            throw IllegalStateException("EventSource already closed")
+        }
         this.future = spawn {
-            while (true) {
+            while (!closed.load()) {
                 var stat = -1
                 try {
                     stat = connect(this.lastMessageId)
@@ -184,16 +189,18 @@ public class EventSource {
                     }
                 } catch (ex: Exception) {
                     log(ex)
-                    this.exceptionHandler(ex, [])
+                    this.exceptionHandler(ex)
                 } finally {
-                    if (Thread.currentThread.hasPendingCancellation || stat == 0) {  // Check cancellation request
+                    if (closed.load() || stat == 0) {
                         this.client.close()
                         log("connection closed")
                         break
                     } else {
                         log("connect retry after ${this.retry}")
                         this.onOpenFired = false
-                        sleep(this.retry)
+                        mutex.lock()
+                        condition.wait(timeout: this.retry)
+                        mutex.unlock()
                     }
                 }
             }
@@ -202,14 +209,20 @@ public class EventSource {
     }
 
     public func close(): Unit {
-        this.future?.cancel()
+        closed.store(true)
+        mutex.lock()
+        condition.notifyAll()
+        mutex.unlock()
+        // Close the underlying socket to interrupt blocking stream.read()
+        if (let Some(socket) <- this.socket) {
+            socket.close()
+        }
     }
 
     private func getHeaders(lastMessageId: Option<String>): HttpHeaders {
         let headers = HttpHeaders()
-        if (!headers.get("accept").iterator().any { value => value == "text/event-stream" }) {
-            headers.add("accept", "text/event-stream")
-        }
+        headers.add("accept", "text/event-stream")
+
         if (lastMessageId.isSome()) {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
@@ -233,51 +246,40 @@ public class EventSource {
     }
 
     private func checkContentType(rsp: HttpResponse): Bool {
-        let isEventStream = rsp.headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-type" &&
-                head[1].iterator().at(0).getOrThrow().toAsciiLower().startsWith("text/event-stream")
-        })
-        if (!isEventStream) {
-            let exception = Exception("Server response error: status is ${rsp.status}!\n${rsp.toString()}")
-            let data = readStreamToEnd(rsp.body)
-            log(exception.message)
-            this.exceptionHandler(exception, data)
+        if (let Some(ct) <- rsp.headers.getFirst("content-type")) {
+            if (ct.toAsciiLower().startsWith("text/event-stream")) {
+                return true
+            }
         }
-        return isEventStream
+        let exception = IllegalArgumentException("Server response error: status is ${rsp.status}!\n${rsp.toString()}")
+        let data = readStreamToEnd(rsp.body)
+        log(exception.message)
+        this.exceptionHandler(exception, data)
+        return false
     }
 
     private func getResponseCompressType(headers: HttpHeaders): Option<CompressType> {
-        return if (headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-encoding" &&
-                    head[1].iterator().any({v => v.toAsciiLower() == "gzip"})
-        })) {
-            Gzip
-        } else if (headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-encoding" &&
-                    head[1].iterator().any({v => v.toAsciiLower() == "br"})
-        })) {
-            Brotli
-        } else {
-            None
+        let encodings = headers.get("content-encoding")
+        if (encodings.iterator().any({v => v.toAsciiLower() == "gzip"})) {
+            return Gzip
         }
+        if (encodings.iterator().any({v => v.toAsciiLower() == "br"})) {
+            return Brotli
+        }
+        return None
     }
 
     private func headersToJsonString(headers: HttpHeaders): String {
         var json = "{"
-        let iter = headers.iterator()
         var first = true
-        var next = iter.next()
-        while (next.isSome()) {
-            let item = next.getOrThrow()
-            let name = item[0]
-            let values = item[1].iterator() |> collectString(delimiter: ",")
+        for ((name, values) in headers) {
+            let valuesJson = values.iterator() |> collectString(delimiter: ",")
             if (!first) {
                 json += ","
             } else {
                 first = false
             }
-            json += "\"${name}\":\"${values}\""
-            next = iter.next()
+            json += "\"${name}\":\"${valuesJson}\""
         }
         json += "}"
         return json
@@ -291,16 +293,15 @@ public class EventSource {
             if (len == 0) {
                 break
             }
-            for (byte in buffer[0..len]) {
-                data.add(byte)
-            }
+            data.add(all: buffer[0..len])
         }
-        return data.toArray()
+        return unsafe { data.getRawArray()[..data.size] }
     }
 
     private func handleMessage(messageHolder: ArrayList<UInt8>): Unit {
+        // Zero-copy: use getRawArray slice instead of toArray (which creates a full copy)
+        let msg = unsafe { messageHolder.getRawArray()[..messageHolder.size] }
         try {
-            let msg = messageHolder.toArray()
             let message = MessageBuilder.resolve(msg)
 
             // Set retry time if specified in message
@@ -324,15 +325,51 @@ public class EventSource {
             }
         } catch (e: Exception) {
             log(e)
-            this.exceptionHandler(e, messageHolder.toArray())
+            this.exceptionHandler(e, msg)
         } finally {
             messageHolder.clear()
         }
     }
+
+    private func processBytes(bytes: Array<UInt8>, len: Int64, messageHolder: ArrayList<UInt8>): Unit {
+        // Scan for newline positions to batch non-\n segments
+        var segStart = 0
+        for (i in 0..len) {
+            let byte = bytes[i]
+            if (byte == NEXT_LINE_FLAG) {
+                // Append batch of non-\n bytes before this \n
+                if (i > segStart) {
+                    messageHolder.add(all: bytes[segStart..i])
+                }
+                // Add the \n byte first
+                messageHolder.add(NEXT_LINE_FLAG)
+                // Check if previous byte was also \n (double \n = message boundary)
+                if (this.lastByteWasNewline) {
+                    // Complete message: two consecutive \n
+                    handleMessage(messageHolder)
+                    // After handleMessage, holder is cleared, next \n is a new "first \n"
+                    this.lastByteWasNewline = false
+                } else {
+                    // This is the first \n, mark it for next boundary check
+                    this.lastByteWasNewline = true
+                }
+                segStart = i + 1
+            } else {
+                this.lastByteWasNewline = false
+            }
+        }
+        // Append remaining non-\n bytes at end of chunk
+        if (len > Int64(segStart)) {
+            messageHolder.add(all: bytes[segStart..len])
+            this.lastByteWasNewline = false
+        }
+    }
+
     private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
         // Process response stream
         let stream = rsp.body
-        let messageaHolder = ArrayList<UInt8>()
+        let messageHolder = ArrayList<UInt8>()
+        this.lastByteWasNewline = false
         // Buffer the entire response for decompression
         let compressBuffer = readStreamToEnd(stream)
 
@@ -342,53 +379,23 @@ public class EventSource {
             case Brotli => BrotliUtil.decompress(compressBuffer)
         }
 
-        // Process decompressed data
-        for (byte in decompressed) {
-            if (byte != NEXT_LINE_FLAG) {
-                messageaHolder.add(byte)
-                continue
-            }
-
-            let lastByte = messageaHolder.get(messageaHolder.size - 1)
-            if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
-                messageaHolder.add(byte)
-                continue
-            }
-
-            // Complete message cached
-            messageaHolder.add(byte)
-            handleMessage(messageaHolder)
-        }
+        // Process decompressed data as batch
+        processBytes(decompressed, Int64(decompressed.size), messageHolder)
         return 0
     }
 
     private func handleNoCompressResponse(rsp: HttpResponse): Int {
         // Normal non-GZIP streaming processing
         let stream = rsp.body
-        let messageaHolder = ArrayList<UInt8>()
+        let messageHolder = ArrayList<UInt8>()
+        this.lastByteWasNewline = false
         let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
         while (true) {
             var len = stream.read(buffer)
             if (len == 0) {
                 return 0 // Chunked stream ended, connection closed
             }
-            for (byte in buffer[0..len]) {
-                if (byte != NEXT_LINE_FLAG) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                let lastByte = messageaHolder.get(messageaHolder.size - 1)
-
-                if (lastByte.isNone() || lastByte != NEXT_LINE_FLAG) {
-                    messageaHolder.add(byte)
-                    continue
-                }
-
-                // Complete message cached
-                messageaHolder.add(byte)
-                handleMessage(messageaHolder)
-            }
+            processBytes(buffer, len, messageHolder)
         }
         return -1
     }
@@ -406,9 +413,9 @@ public class EventSource {
         }
 
         // Process response stream
-        let stream = rsp.body
-        let messageaHolder = ArrayList<UInt8>()
-        let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
+        // let stream = rsp.body
+        let messageHolder = ArrayList<UInt8>()
+        // let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
 
         // For compressed response, we need to buffer and decompress
         // Note: SSE streams are typically not compressed due to streaming nature
@@ -457,6 +464,9 @@ public class EventSource {
 }
 
 public class ObseredSocket <: StreamingSocket {
+    public let socket_string_read = StringBuilder()
+    public let socket_string_write = StringBuilder()
+
     ObseredSocket(let socket: TcpSocket) {
         socket_string_read.reset()
         socket_string_write.reset()
@@ -487,8 +497,7 @@ public class ObseredSocket <: StreamingSocket {
             socket.writeTimeout = value
         }
     }
-    public static let socket_string_read = StringBuilder()
-    public static let socket_string_write = StringBuilder()
+
     public func read(buffer: Array<UInt8>): Int64 {
         let len = socket.read(buffer)
         if (String.checkUtf8Encoding(buffer)) {
@@ -515,30 +524,5 @@ public class ObseredSocket <: StreamingSocket {
     }
     public func connect(): Unit {
         socket.connect()
-    }
-}
-
-var logid = 100
-
-func log(s: ToString): Unit { Hilog.warn(0, 'eventsource4cj', "${s.toString()}")
-    logid += 1
-}
-
-func log(s: Exception): Unit {
-    Hilog.error(0, 'eventsource4cj', "${getStackTrace(s)}")
-    logid += 1
-}
-
-func getStackTrace(thrown: ?Exception): String {
-    var res: String = ""
-    match (thrown) {
-        case None => return res
-        case Some(v) =>
-            res = "\n${v.toString()}\n"
-            var arr = v.getStackTrace()
-            for (line in arr) {
-                res += "      at ${line.declaringClass}.${line.methodName}(${line.fileName}:${line.lineNumber})\n"
-            }
-            return res
     }
 }
