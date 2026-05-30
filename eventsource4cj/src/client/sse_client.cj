@@ -47,7 +47,7 @@ public class EventSource {
 
     public init(url: String) {
         var urlObj = URL.parse(url)
-        let realUrl = if (urlObj.scheme == "https" && urlObj.port.isEmpty()) {
+        this.url = if (urlObj.scheme == "https" && urlObj.port.isEmpty()) {
             urlObj.replace(port: "443")
             urlObj.toString()
         } else {
@@ -69,13 +69,9 @@ public class EventSource {
             var tlsConfig = TlsClientConfig()
             tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
             tlsConfig.alpnProtocolsList = ["h2"]
-//            tlsConfig.keylogCallback = { socket, key =>
-//                log("key log: ${key}")
-//            }
             clientBuilder.tlsConfig(tlsConfig)
         }
         this.client = clientBuilder.build()
-        this.url = realUrl
         this.mutex.lock()
         this.condition = mutex.condition()
         this.mutex.unlock()
@@ -225,9 +221,8 @@ public class EventSource {
 
     private func getHeaders(lastMessageId: Option<String>): HttpHeaders {
         let headers = HttpHeaders()
-        if (!headers.get("accept").iterator().any { value => value == "text/event-stream" }) {
-            headers.add("accept", "text/event-stream")
-        }
+        headers.add("accept", "text/event-stream")
+
         if (lastMessageId.isSome()) {
             headers.add("Last-Event-ID", lastMessageId.getOrThrow())
         }
@@ -251,51 +246,40 @@ public class EventSource {
     }
 
     private func checkContentType(rsp: HttpResponse): Bool {
-        let isEventStream = rsp.headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-type" &&
-                head[1].iterator().at(0).getOrThrow().toAsciiLower().startsWith("text/event-stream")
-        })
-        if (!isEventStream) {
-            let exception = Exception("Server response error: status is ${rsp.status}!\n${rsp.toString()}")
-            let data = readStreamToEnd(rsp.body)
-            log(exception.message)
-            this.exceptionHandler(exception, data)
+        if (let Some(ct) <- rsp.headers.getFirst("content-type")) {
+            if (ct.toAsciiLower().startsWith("text/event-stream")) {
+                return true
+            }
         }
-        return isEventStream
+        let exception = IllegalArgumentException("Server response error: status is ${rsp.status}!\n${rsp.toString()}")
+        let data = readStreamToEnd(rsp.body)
+        log(exception.message)
+        this.exceptionHandler(exception, data)
+        return false
     }
 
     private func getResponseCompressType(headers: HttpHeaders): Option<CompressType> {
-        return if (headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-encoding" &&
-                    head[1].iterator().any({v => v.toAsciiLower() == "gzip"})
-        })) {
-            Gzip
-        } else if (headers.iterator().any({
-            head => head[0].toAsciiLower() == "content-encoding" &&
-                    head[1].iterator().any({v => v.toAsciiLower() == "br"})
-        })) {
-            Brotli
-        } else {
-            None
+        let encodings = headers.get("content-encoding")
+        if (encodings.iterator().any({v => v.toAsciiLower() == "gzip"})) {
+            return Gzip
         }
+        if (encodings.iterator().any({v => v.toAsciiLower() == "br"})) {
+            return Brotli
+        }
+        return None
     }
 
     private func headersToJsonString(headers: HttpHeaders): String {
         var json = "{"
-        let iter = headers.iterator()
         var first = true
-        var next = iter.next()
-        while (next.isSome()) {
-            let item = next.getOrThrow()
-            let name = item[0]
-            let values = item[1].iterator() |> collectString(delimiter: ",")
+        for ((name, values) in headers) {
+            let valuesJson = values.iterator() |> collectString(delimiter: ",")
             if (!first) {
                 json += ","
             } else {
                 first = false
             }
-            json += "\"${name}\":\"${values}\""
-            next = iter.next()
+            json += "\"${name}\":\"${valuesJson}\""
         }
         json += "}"
         return json

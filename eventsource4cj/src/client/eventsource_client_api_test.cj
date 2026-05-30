@@ -49,7 +49,6 @@ class EventSourceClientApiTest {
         es.setBody(#"{"query":"abc"}"#)
         es.onEvent("post-range", { msg =>
             postCount.fetchAdd(1)
-            println(msg.data.getOrThrow())
             if (msg.data.isSome() && msg.data.getOrThrow().contains("abc")) {
                 bodySeen.store(true)
             }
