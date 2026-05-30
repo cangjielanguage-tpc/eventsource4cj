@@ -12,7 +12,6 @@ package eventsource4cj.model
 import std.collection.ArrayList
 import std.math.numeric.*
 import stdx.log.*
-import ohos.hilog.Hilog
 
 public struct Message {
     static let NEXT_DATA_LINE = '\n'
@@ -227,33 +226,50 @@ public class MessageBuilder {
 
     public static func resolve(messageBody: Array<UInt8>): Message {
         let mb = MessageBuilder()
-        if (!String.checkUtf8Encoding(messageBody)) {
-             Hilog.warn(0, 'SSE', "message is not utf8")
-            return mb.build()
+        // NOTE: fromUtf8 throws IllegalArgumentException on invalid UTF-8. Throwing an exception is arguably more
+        // reasonable (consistent with other error handling, preserves raw data for the app to decide).
+        let messageStr = String.fromUtf8(messageBody)
+        for (line in messageStr.lines()) {
+            parseLine(line, mb)
         }
-        for (line in unsafe { String.fromUtf8(messageBody) }.lines()) {
-            if (line.startsWith(Message.FIELD_MARK_COLON)) {
-                mb.comment(getValue(line))
-            } else if (line.startsWith(Message.FIELD_LABEL_EVENT)) {
-                mb.event(getValue(line))
-            } else if (line.startsWith(Message.FIELD_LABEL_ID)) {
-                mb.id(getValue(line))
-            } else if (line.startsWith(Message.FIELD_LABEL_RETRY)) {
-                let retryValue = getValue(line)
-                if (retryValue.size > 0) {
-                    mb.retry(Decimal.parse(retryValue).toUInt16())
-                }
-            } else if (line.startsWith(Message.FIELD_LABEL_DATA)) {
-                mb.data(getValue(line))
-            } else {
-                log.warn("Unrecognized data line: ${line}")
-            }
-        }
-
         return mb.build()
     }
 
+    static func parseLine(line: String, mb: MessageBuilder): Unit {
+        if (line.size == 0) { return }
+        // Comment line: starts with ':'
+        if (line.startsWith(Message.FIELD_MARK_COLON)) {
+            mb.comment(getValue(line))
+            return
+        }
+        // Field line: use indexOf + slice instead of split (avoids creating intermediate Array<String>)
+        let colonPos = line.indexOf(Message.FIELD_MARK_COLON)
+        if (let Some(pos) <- colonPos) {
+            let fieldName = line[..pos]        // zero-copy String slice
+            let value = line[pos + 1..].removePrefix(" ")  // zero-copy slice + removePrefix
+            if (fieldName == Message.FIELD_LABEL_EVENT) {
+                mb.event(value)
+            } else if (fieldName == Message.FIELD_LABEL_ID) {
+                mb.id(value)
+            } else if (fieldName == Message.FIELD_LABEL_RETRY) {
+                if (value.size > 0) {
+                    mb.retry(Decimal.parse(value).toUInt16())
+                }
+            } else if (fieldName == Message.FIELD_LABEL_DATA) {
+                mb.data(value)
+            } else {
+                log.warn("Unrecognized data line: ${line}")
+            }
+        } else {
+            log.warn("Unrecognized data line (no colon): ${line}")
+        }
+    }
+
     static func getValue(messageLine: String): String {
-        return messageLine.split(Message.FIELD_MARK_COLON, 2)[1].removePrefix(" ")
+        let colonPos = messageLine.indexOf(Message.FIELD_MARK_COLON)
+        if (let Some(pos) <- colonPos) {
+            return messageLine[pos + 1..].removePrefix(" ")
+        }
+        return ""
     }
 }

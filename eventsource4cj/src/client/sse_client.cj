@@ -311,12 +311,12 @@ public class EventSource {
             }
             data.add(all: buffer[0..len])
         }
-        return data.toArray()
+        return unsafe { data.getRawArray()[..data.size] }
     }
 
     private func handleMessage(messageHolder: ArrayList<UInt8>): Unit {
-        // Convert to array only once, used in both normal and exception paths
-        let msg = messageHolder.toArray()
+        // Zero-copy: use getRawArray slice instead of toArray (which creates a full copy)
+        let msg = unsafe { messageHolder.getRawArray()[..messageHolder.size] }
         try {
             let message = MessageBuilder.resolve(msg)
 
