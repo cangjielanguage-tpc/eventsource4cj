@@ -16,6 +16,7 @@ import stdx.net.http.*
 import std.net.*
 import std.io.InputStream
 import stdx.net.tls.*
+import stdx.compress.zlib.*
 import std.sync.AtomicBool
 import std.sync.Mutex
 import std.sync.Condition
@@ -366,20 +367,35 @@ public class EventSource {
     }
 
     private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
-        // Process response stream
-        let stream = rsp.body
         let messageHolder = ArrayList<UInt8>()
         this.lastByteWasNewline = false
-        // Buffer the entire response for decompression
-        let compressBuffer = readStreamToEnd(stream)
 
-        // Decompress data
-        let decompressed = match (compressType) {
-            case Gzip => GzipUtil.decompress(compressBuffer)
-            case Brotli => BrotliUtil.decompress(compressBuffer)
+        return match (compressType) {
+            case Gzip => handleGzipStreamResponse(rsp.body, messageHolder)
+            case Brotli => handleBrotliStreamResponse(rsp.body, messageHolder)
         }
+    }
 
-        // Process decompressed data as batch
+    private func handleGzipStreamResponse(stream: InputStream, messageHolder: ArrayList<UInt8>): Int {
+        // Stream decompression: DecompressInputStream wraps the network stream directly,
+        // producing decompressed output incrementally as compressed data arrives.
+        let decompressStream = DecompressInputStream(stream, wrap: GzipFormat, bufLen: DEFAULT_BUFFER_SIZE)
+        let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
+        while (true) {
+            let len = decompressStream.read(buffer)
+            if (len == 0) {
+                decompressStream.close()
+                return 0
+            }
+            processBytes(buffer, len, messageHolder)
+        }
+        return -1
+    }
+
+    private func handleBrotliStreamResponse(stream: InputStream, messageHolder: ArrayList<UInt8>): Int {
+        // Brotli 暂保留全量缓冲，待 brotli4cj 改造后改为流式
+        let compressBuffer = readStreamToEnd(stream)
+        let decompressed = BrotliUtil.decompress(compressBuffer)
         processBytes(decompressed, Int64(decompressed.size), messageHolder)
         return 0
     }
@@ -411,11 +427,6 @@ public class EventSource {
             this.onOpenFired = true
             this.onOpenHandler(headersToJsonString(rsp.headers))
         }
-
-        // Process response stream
-        // let stream = rsp.body
-        let messageHolder = ArrayList<UInt8>()
-        // let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
 
         // For compressed response, we need to buffer and decompress
         // Note: SSE streams are typically not compressed due to streaming nature
