@@ -587,6 +587,99 @@ app.get('/sse/gzip-stream/ai/:page/:count/:interval', (req, res) => {
     })
 })
 
+// Streaming Brotli compressed SSE endpoint (for testing stream decompression)
+app.get('/sse/brotli-stream/test/:page/:count/:interval/:datasize?', (req, res) => {
+    console.log('Brotli Stream Test:')
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    if (!acceptEncoding.includes('br')) {
+        res.status(400).json({ error: 'Accept-Encoding: br required for this endpoint' })
+        return
+    }
+
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+    let data = getData(req.params.datasize)
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Content-Encoding', 'br')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+
+    const brotliStream = zlib.createBrotliCompress()
+    brotliStream.pipe(res)
+
+    let remaining = count
+    const pusher = setInterval(() => {
+        if (remaining <= 0) {
+            clearInterval(pusher)
+            brotliStream.end()
+            return
+        }
+        const result = Array.from({ length: page }, (_, i) =>
+            `event: brotli-stream\ndata: stream-msg-${remaining}-${i + 1}${data}\n\n`
+        ).join('')
+        brotliStream.write(result)
+        remaining--
+    }, interval)
+
+    res.on('close', () => {
+        console.log('Brotli stream connection closed')
+        clearInterval(pusher)
+        brotliStream.destroy()
+    })
+})
+
+// AI streaming SSE endpoint with Brotli compression (simulates LLM streaming response)
+app.get('/sse/brotli-stream/ai/:page/:count/:interval', (req, res) => {
+    console.log('Brotli AI Stream Test:')
+    console.log('  Accept-Encoding:', req.headers['accept-encoding'])
+
+    const acceptEncoding = req.headers['accept-encoding'] || ''
+    if (!acceptEncoding.includes('br')) {
+        res.status(400).json({ error: 'Accept-Encoding: br required for this endpoint' })
+        return
+    }
+
+    let page = Number(req.params.page)
+    let count = Number(req.params.count)
+    let interval = Number(req.params.interval)
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Content-Encoding', 'br')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+
+    const brotliStream = zlib.createBrotliCompress()
+    brotliStream.pipe(res)
+
+    let remaining = count
+    let chunkIndex = 1
+    const pusher = setInterval(() => {
+        if (remaining <= 0) {
+            clearInterval(pusher)
+            brotliStream.end()
+            return
+        }
+        const result = Array.from({ length: page }, (_, i) =>
+            `event: ai-stream\ndata: ${aiStreamData(chunkIndex * page + i)}\n\n`
+        ).join('')
+        brotliStream.write(result)
+        remaining--
+        chunkIndex++
+    }, interval)
+
+    res.on('close', () => {
+        console.log('Brotli AI stream connection closed')
+        clearInterval(pusher)
+        brotliStream.destroy()
+    })
+})
+
 // SSE endpoint for testing message boundary edge cases (\n\n detection)
 // Sends messages with comments, consecutive empty lines, and multiple messages in one chunk
 app.get('/sse/boundary/test/:pattern', (req, res) => {

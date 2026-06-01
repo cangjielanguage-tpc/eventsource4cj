@@ -17,7 +17,7 @@
 
 ```shell
 cd ${Project_Root_Path}
-git clone git@gitcode.com:Cangjie-TPC/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
+git clone git@gitcode.com:Cangjie-TPC/brotli4cj.git -b v1.0.1_cangjie_plugin_5.1.1
 ```
 
 #### 1.3 场景

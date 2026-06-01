@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 const GIT_REPO_URL = 'https://gitcode.com/Cangjie-TPC/brotli4cj.git';
-const GIT_BRANCH = 'brotli-ffi_cangjie-plugin_5.1.1';
+const GIT_TAG = 'v1.0.1_cangjie_plugin_5.1.1';
 const TARGET_DIR = path.join(PROJECT_ROOT, 'brotli4cj');
 
 const ARM64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie-stdx-bin/releases/download/v1.0.1.1/cangjie-stdx-ohos-aarch64-1.0.1.1.zip';
@@ -94,7 +94,7 @@ function downloadAndExtract(label, zipUrl, tempPath, extractPath) {
 if (!fs.existsSync(TARGET_DIR)) {
     console.log(`Downloading ${GIT_REPO_URL}...`);
     try {
-        execSync(`git clone --depth 1 ${GIT_REPO_URL} -b ${GIT_BRANCH} ${TARGET_DIR}`, {
+        execSync(`git clone --depth 1 ${GIT_REPO_URL} -b ${GIT_TAG} ${TARGET_DIR}`, {
             stdio: 'inherit',
             cwd: PROJECT_ROOT
         });

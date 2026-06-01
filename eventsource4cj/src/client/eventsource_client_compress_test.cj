@@ -56,6 +56,62 @@ class EventSourceClientCompressTest {
             aiCount.fetchAdd(1)
             if (msg.data.isSome() && msg.data.getOrThrow().contains("claude-4-sonnet")) {
                 contentSeen.store(true)
+            } else {
+                contentSeen.store(false)
+            }
+        })
+        es.subscribe().get()
+
+        @Assert(aiCount.load(), 50)
+        @Assert(contentSeen.load())
+    }
+
+    // ============== Brotli streaming decompression tests ==============
+
+    @TestCase
+    func brotliStreamDecompressionReceivesAllMessages() {
+        let streamCount = AtomicInt64(0)
+        let streamDataSeen = AtomicBool(false)
+        let es = EventSource("${SSE_BASE_URL}/sse/brotli-stream/test/1/3/50")
+        es.setAcceptCompressType(2)
+        es.onEvent("brotli-stream", { msg =>
+            streamCount.fetchAdd(1)
+            if (msg.data.isSome() && msg.data.getOrThrow().contains("stream-msg")) {
+                streamDataSeen.store(true)
+            }
+        })
+        es.subscribe().get()
+
+        @Assert(streamCount.load(), 3)
+        @Assert(streamDataSeen.load())
+    }
+
+    @TestCase
+    func brotliStreamDecompressionWithMultiPageMessages() {
+        let streamCount = AtomicInt64(0)
+        let es = EventSource("${SSE_BASE_URL}/sse/brotli-stream/test/2/3/50")
+        es.setAcceptCompressType(2)
+        es.onEvent("brotli-stream", { _ => streamCount.fetchAdd(1) })
+        es.subscribe().get()
+
+        // page=2, count=3 → 2 messages per interval × 3 intervals = 6 total
+        @Assert(streamCount.load(), 6)
+    }
+
+    // AI streaming response with Brotli compression — simulates LLM streaming
+    // BrotliInputStream wraps network stream directly, decompresses incrementally
+    @TestCase
+    func brotliAiStreamDecompressionRequiresMultipleReads() {
+        let aiCount = AtomicInt64(0)
+        let contentSeen = AtomicBool(false)
+        let es = EventSource("${SSE_BASE_URL}/sse/brotli-stream/ai/5/10/50")
+        es.setAcceptCompressType(2)
+        es.onEvent("ai-stream", { msg =>
+            aiCount.fetchAdd(1)
+            if (msg.data.isSome() && msg.data.getOrThrow().contains("claude-4-sonnet")) {
+                contentSeen.store(true)
+            } else {
+                contentSeen.store(false)
             }
         })
         es.subscribe().get()

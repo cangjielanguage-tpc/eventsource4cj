@@ -190,11 +190,11 @@ public class BrotliUtil {
         let buffer = Array<UInt8>(8192, {_ => 0})
         
         while (true) {
-            let len = brotliInput.read(buffer, 0, Int32(buffer.size))
+            let len = brotliInput.read(buffer)
             if (len <= 0) {
                 break
             }
-            for (i in 0..Int64(len)) {
+            for (i in 0..len) {
                 result.add(buffer[i])
             }
         }

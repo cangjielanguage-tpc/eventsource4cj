@@ -21,6 +21,7 @@ import std.sync.AtomicBool
 import std.sync.Mutex
 import std.sync.Condition
 import stdx.encoding.url.URL
+import brotli4cj.*
 
 public class EventSource {
     static const DEFAULT_BUFFER_SIZE = 1024 * 8
@@ -366,54 +367,46 @@ public class EventSource {
         }
     }
 
-    private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Int {
+    private func handleCompressResponse(rsp: HttpResponse, compressType: CompressType): Unit {
         let messageHolder = ArrayList<UInt8>()
         this.lastByteWasNewline = false
 
-        return match (compressType) {
-            case Gzip => handleGzipStreamResponse(rsp.body, messageHolder)
-            case Brotli => handleBrotliStreamResponse(rsp.body, messageHolder)
+        let decompressStream: InputStream = match (compressType) {
+            case Gzip => DecompressInputStream(rsp.body, wrap: GzipFormat, bufLen: DEFAULT_BUFFER_SIZE)
+            case Brotli => BrotliInputStream(rsp.body)
         }
+
+        decompress(decompressStream, messageHolder)
     }
 
-    private func handleGzipStreamResponse(stream: InputStream, messageHolder: ArrayList<UInt8>): Int {
+    private func decompress(decompressStream: InputStream, messageHolder: ArrayList<UInt8>): Unit {
         // Stream decompression: DecompressInputStream wraps the network stream directly,
         // producing decompressed output incrementally as compressed data arrives.
-        let decompressStream = DecompressInputStream(stream, wrap: GzipFormat, bufLen: DEFAULT_BUFFER_SIZE)
         let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
-        while (true) {
-            let len = decompressStream.read(buffer)
-            if (len == 0) {
-                decompressStream.close()
-                return 0
+        try {
+            var len = decompressStream.read(buffer)
+            while (len > 0) {
+                processBytes(buffer, len, messageHolder)
+                len = decompressStream.read(buffer)
             }
-            processBytes(buffer, len, messageHolder)
+        } finally {
+            if (let Some(resource) <- (decompressStream as Resource)) {
+                resource.close()
+            }
         }
-        return -1
     }
 
-    private func handleBrotliStreamResponse(stream: InputStream, messageHolder: ArrayList<UInt8>): Int {
-        // Brotli 暂保留全量缓冲，待 brotli4cj 改造后改为流式
-        let compressBuffer = readStreamToEnd(stream)
-        let decompressed = BrotliUtil.decompress(compressBuffer)
-        processBytes(decompressed, Int64(decompressed.size), messageHolder)
-        return 0
-    }
-
-    private func handleNoCompressResponse(rsp: HttpResponse): Int {
+    private func handleNoCompressResponse(rsp: HttpResponse): Unit {
         // Normal non-GZIP streaming processing
         let stream = rsp.body
         let messageHolder = ArrayList<UInt8>()
         this.lastByteWasNewline = false
         let buffer = Array<UInt8>(DEFAULT_BUFFER_SIZE, {_ => 0})
-        while (true) {
-            var len = stream.read(buffer)
-            if (len == 0) {
-                return 0 // Chunked stream ended, connection closed
-            }
+        var len = stream.read(buffer)
+        while (len > 0) {
             processBytes(buffer, len, messageHolder)
+            len = stream.read(buffer)
         }
-        return -1
     }
 
     private func handleResponse(rsp: HttpResponse): Int {
@@ -431,11 +424,12 @@ public class EventSource {
         // For compressed response, we need to buffer and decompress
         // Note: SSE streams are typically not compressed due to streaming nature
         // This implementation handles both cases
-        return if (let Some(compressType) <- getResponseCompressType(rsp.headers)) {
+        if (let Some(compressType) <- getResponseCompressType(rsp.headers)) {
             handleCompressResponse(rsp, compressType)
         } else {
             handleNoCompressResponse(rsp)
         }
+        return 0
     }
 
     private func connect(lastMessageId: Option<String>): Int {
