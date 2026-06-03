@@ -37,7 +37,7 @@ public class EventSource {
     var exceptionHandler = {e: Exception, _: Array<UInt8> => log(e)}
     var onOpenHandler = {_: String =>}
     var onOpenFired = false
-    var socket: ?ObseredSocket = None
+    var socket: ?TcpSocket = None
     var requestBody: Option<RequestBody> = Option.None
     var requestBodyCompressType: Option<CompressType> = Option.None
     var acceptCompressTypes: Array<CompressType> = []
@@ -57,9 +57,8 @@ public class EventSource {
         }
         let TcpSocketConnector = {
             sa: SocketAddress =>
-                var tcpSocket = TcpSocket(sa)
-                tcpSocket.noDelay = true
-                var socket = ObseredSocket(tcpSocket)
+                let socket = TcpSocket(sa)
+                socket.noDelay = true
                 this.socket = socket
                 log("Socket connecting")
                 socket.connect()
@@ -465,69 +464,5 @@ public class EventSource {
         let rsp = client.send(req)
 
         return handleResponse(rsp)
-    }
-}
-
-public class ObseredSocket <: StreamingSocket {
-    public let socket_string_read = StringBuilder()
-    public let socket_string_write = StringBuilder()
-
-    ObseredSocket(let socket: TcpSocket) {
-        socket_string_read.reset()
-        socket_string_write.reset()
-    }
-    public prop localAddress: SocketAddress {
-        get() {
-            return socket.localAddress
-        }
-    }
-    public prop remoteAddress: SocketAddress {
-        get() {
-            return socket.remoteAddress
-        }
-    }
-    public mut prop readTimeout: ?Duration {
-        get() {
-            return socket.readTimeout
-        }
-        set(value) {
-            socket.readTimeout = value
-        }
-    }
-    public mut prop writeTimeout: ?Duration {
-        get() {
-            return socket.writeTimeout
-        }
-        set(value) {
-            socket.writeTimeout = value
-        }
-    }
-
-    public func read(buffer: Array<UInt8>): Int64 {
-        let len = socket.read(buffer)
-        if (String.checkUtf8Encoding(buffer)) {
-            socket_string_read.append(
-                "${String.fromUtf8(buffer[..len]).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
-        }
-        return len
-    }
-    public func write(buffer: Array<UInt8>): Unit {
-        if (String.checkUtf8Encoding(buffer)) {
-            socket_string_write.append(
-                "${String.fromUtf8(buffer).replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")}")
-        }
-        return socket.write(buffer)
-    }
-    public func close(): Unit {
-        socket.close()
-    }
-    public func isClosed(): Bool {
-        return socket.isClosed()
-    }
-    public func toString(): String {
-        return socket.toString()
-    }
-    public func connect(): Unit {
-        socket.connect()
     }
 }
