@@ -36,11 +36,9 @@ public class Message <: SharedObject & JSInteropType<Message> {
     }
 
     public static func jsConstructor(context: JSContext, callInfo: JSCallInfo): JSValue {
-        JSCurrentJSContext.set(context)
         let clazz = Message()
-        JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = context.external(clazz)
         thisObject.attachCJObject(jsExternal)
         return thisObject.toJSValue()
@@ -56,176 +54,148 @@ public class Message <: SharedObject & JSInteropType<Message> {
 
     public static func get_messageTag_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.messageTag
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func get_eventType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.eventType
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func get_msgId_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.msgId
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func get_dataLines_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.dataLines
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func get_data_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.data
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func get_retryInMills_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.retryInMills
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func get_toMessageString_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.toMessageString
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
     public static func set_messageTag_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = Option<String>.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.messageTag = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
     public static func set_eventType_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = Option<String>.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.eventType = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
     public static func set_msgId_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = Option<String>.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.msgId = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
     public static func set_dataLines_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = Option<JSArrayEx<String>>.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.dataLines = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
     public static func set_data_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = Option<String>.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.data = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
     public static func set_retryInMills_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = Option<UInt16>.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.retryInMills = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
     public static func set_toMessageString_ArkTS_Interop_Identifier(context: JSContext, callInfo: JSCallInfo): JSValue {
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<Message>() ?? throw Exception("class: get clazz failed.")
 
         let value = String.fromJSValue(context, callInfo[0])
-        JSCurrentJSContext.set(context)
         clazz.toMessageString = value
-        JSCurrentJSContext.unset()
         return context.undefined().toJSValue()
     }
 
@@ -252,8 +222,8 @@ public class Message <: SharedObject & JSInteropType<Message> {
         obj.toJSValue()
     }
 
-    public static func fromJSValue(context: JSContext, input: JSValue) {
-        let jsObj = input.asObject(context)
+    public static func fromJSValue(context: JSContext, input: JSValue): Message {
+        let jsObj = input.asObject()
         let jsExt = jsObj.getAttachInfo() ?? throw Exception("class: get external failed.")
         let obj = jsExt.cast<Message>() ?? throw Exception("class: get clazz failed.")
         return obj
@@ -275,12 +245,10 @@ public class Message <: SharedObject & JSInteropType<Message> {
     }
 
     static func create(context: JSContext, callInfo: JSCallInfo, msg: CJMessage): JSValue {
-        JSCurrentJSContext.set(context)
         let clazz = Message()
         clazz.setMsg(context, msg)
-        JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
-        let thisObject = thisArg.asObject(context)
+        let thisObject = thisArg.asObject()
         let jsExternal = context.external(clazz)
         thisObject.attachCJObject(jsExternal)
         return thisObject.toJSValue()

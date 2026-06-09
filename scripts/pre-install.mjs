@@ -8,13 +8,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 const GIT_REPO_URL = 'https://gitcode.com/Cangjie-TPC/brotli4cj.git';
-const GIT_TAG = 'v1.0.1_cangjie_plugin_5.1.1';
+const GIT_TAG = 'v1.0.1_cangjie_plugin_6.1.1';
 const TARGET_DIR = path.join(PROJECT_ROOT, 'brotli4cj');
 
-const ARM64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie-stdx-bin/releases/download/v1.0.1.1/cangjie-stdx-ohos-aarch64-1.0.1.1.zip';
+const ARM64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.1.3.1/cangjie-stdx-ohos-aarch64-1.1.3.1.zip';
 const ARM64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, 'cangjie-stdx-ohos-aarch64-1.0.1.1.zip');
 
-const X64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie-stdx-bin/releases/download/v1.0.1.1/cangjie-stdx-ohos-x64-1.0.1.1.zip';
+const X64_ZIP_URL = 'https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.1.3.1/cangjie-stdx-ohos-x64-1.1.3.1.zip';
 const X64_ZIP_TEMP_PATH = path.join(PROJECT_ROOT, 'cangjie-stdx-linux-x64-1.0.1.1.zip');
 
 function persistEnvVar(name, value) {
@@ -48,6 +48,7 @@ function resolveCangjieStdxPath() {
 }
 
 function hasStdxBinaries(basePath) {
+    console.log(`basePath: ${basePath}`);
     const arm64Dir = path.join(basePath, 'linux_ohos_aarch64_llvm');
     const x64Dir = path.join(basePath, 'linux_ohos_x86_64_llvm');
     return fs.existsSync(arm64Dir) && fs.existsSync(x64Dir);

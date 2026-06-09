@@ -42,10 +42,8 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let argCount = callInfo.count
         let url = String.fromJSValue(context, callInfo[0])
 
-        JSCurrentJSContext.set(context)
         let clazz: EventSource
         clazz = EventSource(url)
-        JSCurrentJSContext.unset()
         let thisArg = callInfo.thisArg
         let thisObject = thisArg.asObject()
         let jsExternal = context.external(clazz)
@@ -62,20 +60,20 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let jsHandler = callInfo[0].asFunction()
         let handlerWrapper: (Exception, Array<UInt8>) -> Unit = {
             e: Exception, data: Array<UInt8> => context.postJSTask {
-                jsHandler.call(
-                    [
-                        context.string(e.toString()).toJSValue(),
-                        context.arrayBuffer(data).toJSValue()
-                    ]
-                )
+                context.newScope {
+                    jsHandler.call(
+                        [
+                            context.string(e.toString()).toJSValue(),
+                            context.arrayBuffer(data).toJSValue()
+                        ]
+                    )
+                }
             }
         }
         let RET = clazz.setExceptionHandler(handlerWrapper)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -88,15 +86,15 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let jsHandler = callInfo[0].asFunction()
         let handlerWrapper: (CJMessage) -> Unit = {
             msg: CJMessage => context.postJSTask {
-                jsHandler.call(buildMessage(context, msg))
+                context.newScope {
+                    jsHandler.call(buildMessage(context, msg))
+                }
             }
         }
         let RET = clazz.onMessage(handlerWrapper)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -109,16 +107,16 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let event = callInfo[0].toString()
         let jsHandler = callInfo[1].asFunction()
         let handlerWrapper: (CJMessage) -> Unit = {
             msg: CJMessage => context.postJSTask {
-                jsHandler.call(buildMessage(context, msg))
+                context.newScope {
+                    jsHandler.call(buildMessage(context, msg))
+                }
             }
         }
         let RET = clazz.onEvent(event, handlerWrapper)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -131,17 +129,17 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let jsHandler = callInfo[0].asFunction()
         let handlerWrapper: (String) -> Unit = {
             responseHeaders: String => context.postJSTask {
-                jsHandler.call(
-                    context.string(responseHeaders).toJSValue()
-                )
+                context.newScope {
+                    jsHandler.call(
+                        context.string(responseHeaders).toJSValue()
+                    )
+                }
             }
         }
         let RET = clazz.onOpen(handlerWrapper)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -154,23 +152,25 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let promise = context.promiseCapability()
         spawn {
             try {
                 let future = clazz.subscribe()
                 let ret = future.get()
                 context.postJSTask {
-                    promise.resolve(ret.toJSValue(context))
+                    context.newScope {
+                        promise.resolve(ret.toJSValue(context))
+                    }
                 }
             } catch (e: Exception) {
                 context.postJSTask {
-                    promise.reject(context.string(e.toString()).toJSValue())
+                    context.newScope {
+                        promise.reject(context.string(e.toString()).toJSValue())
+                    }
                 }
                 Hilog.error(0, 'eventsource4cj', getStackTrace(e))
             }
         }
-        JSCurrentJSContext.unset()
         return promise.toJSValue()
     }
 
@@ -183,9 +183,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.close()
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -198,11 +196,9 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let name = callInfo[0].toString()
         let value = callInfo[1].toString()
         let RET = clazz.setHeader(name, value)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -215,15 +211,14 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let jsHeaders = callInfo[0]
         let headers = HashMap<String, String>()
 
         // Use JS built-in method to get all keys of object
         let objectKeys = context.global["Object"].asObject()["keys"].asFunction()
-        let keysJSArray = objectKeys.call([jsHeaders]).asArray(context)
+        let keysJSArray = objectKeys.call([jsHeaders]).asArray()
         let length = keysJSArray.size
-        let jsHeadersObj = jsHeaders.asObject(context)
+        let jsHeadersObj = jsHeaders.asObject()
 
         for (i in 0..length) {
             let key = keysJSArray[i].toString()
@@ -231,7 +226,6 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
             headers.add(key, value)
         }
         let RET = clazz.setHeaders(headers)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -244,10 +238,8 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let name = callInfo[0].toString()
         let RET = clazz.removeHeader(name)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -260,9 +252,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.clearHeaders()
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -280,7 +270,6 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let jsBody = callInfo[0]
         let RET: Unit
         if (jsBody.isString()) {
@@ -292,7 +281,6 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
             let body = buffer.readBytes()
             RET = clazz.setBody(body)
         }
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -305,9 +293,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.clearBody()
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -320,10 +306,8 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let compress = Int64(callInfo[0].toNumber())
         let RET = clazz.setRequestCompressType(compress)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -336,9 +320,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.getRequestCompressType()
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -352,10 +334,8 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let compress = Int64(callInfo[0].toNumber())
         let RET = clazz.setAcceptCompressType(compress)
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -369,9 +349,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         let jsExternal = thisObject.getAttachInfo() ?? throw Exception("class: get external failed.")
         let clazz = jsExternal.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
 
-        JSCurrentJSContext.set(context)
         let RET = clazz.getAcceptCompressType()
-        JSCurrentJSContext.unset()
         return RET.toJSValue(context)
     }
 
@@ -399,7 +377,7 @@ public class EventSource <: SharedObject & JSInteropType<EventSource> {
         obj.toJSValue()
     }
 
-    public static func fromJSValue(context: JSContext, input: JSValue) {
+    public static func fromJSValue(context: JSContext, input: JSValue): EventSource {
         let jsObj = input.asObject()
         let jsExt = jsObj.getAttachInfo() ?? throw Exception("class: get external failed.")
         let obj = jsExt.cast<EventSource>() ?? throw Exception("class: get clazz failed.")
