@@ -22,6 +22,7 @@ import std.sync.Mutex
 import std.sync.Condition
 import stdx.encoding.url.URL
 import brotli4cj.*
+import stdx.net.tls.common.CertificateVerifyMode
 
 public class EventSource {
     static const DEFAULT_BUFFER_SIZE = 1024 * 8
@@ -69,7 +70,7 @@ public class EventSource {
         if (url.startsWith("https://")) {
             var tlsConfig = TlsClientConfig()
             tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
-            tlsConfig.alpnProtocolsList = ["h2"]
+            tlsConfig.supportedAlpnProtocols = ["h2"]
             clientBuilder.tlsConfig(tlsConfig)
         }
         this.client = clientBuilder.build()
