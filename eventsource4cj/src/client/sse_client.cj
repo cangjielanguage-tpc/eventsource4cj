@@ -70,7 +70,7 @@ public class EventSource {
         if (url.startsWith("https://")) {
             var tlsConfig = TlsClientConfig()
             tlsConfig.verifyMode = CertificateVerifyMode.TrustAll
-            tlsConfig.supportedAlpnProtocols = ["h2"]
+            tlsConfig.supportedAlpnProtocols = ["http/1.1", "h2"]
             clientBuilder.tlsConfig(tlsConfig)
         }
         this.client = clientBuilder.build()
