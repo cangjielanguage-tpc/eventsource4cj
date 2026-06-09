@@ -1,5 +1,6 @@
 const express = require('express')
 const fs = require('fs')
+const https = require('https')
 const serveStatic = require('serve-static')
 const { default: SseStream } = require('ssestream')
 const compression = require('compression')
@@ -715,10 +716,35 @@ app.get('/sse/boundary/test/:pattern', (req, res) => {
     setTimeout(() => { res.end() }, 100)
 })
 
-const PORT = process.env.PORT || 9000
-app.listen(PORT, '0.0.0.0', (err) => {
+const HTTP_PORT = process.env.PORT || 9000
+const HTTPS_PORT = process.env.HTTPS_PORT || 9443
+
+// Start HTTP server
+app.listen(HTTP_PORT, '0.0.0.0', (err) => {
     if (err) {
         throw err
     }
-    console.log(`server ready on http://0.0.0.0:${PORT}`)
+    console.log(`HTTP server ready on http://0.0.0.0:${HTTP_PORT}`)
 })
+
+// Start HTTPS server (for testing TLS/SSE client functionality)
+const certPath = process.env.TLS_CERT || `${__dirname}/cert.pem`
+const keyPath = process.env.TLS_KEY || `${__dirname}/key.pem`
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    const tlsOptions = {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+    }
+    https.createServer(tlsOptions, app).listen(HTTPS_PORT, '0.0.0.0', (err) => {
+        if (err) {
+            throw err
+        }
+        console.log(`HTTPS server ready on https://0.0.0.0:${HTTPS_PORT}`)
+        console.log('  Note: Using self-signed certificate — client must accept/trust it')
+    })
+} else {
+    console.log(`HTTPS server NOT started: cert/key files not found (expected ${certPath} and ${keyPath})`)
+    console.log('  To enable HTTPS, generate self-signed certs:')
+    console.log('    openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes -subj "//CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"')
+}
