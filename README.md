@@ -2,7 +2,7 @@
 
 ### 1.1 stdx
 
-该库依赖stdx中的包（<https://gitcode.com/Cangjie/cangjie-stdx-bin/releases> ），当前依赖版本为 v1.0.1.1。
+该库依赖stdx中的包（<https://gitcode.com/Cangjie/cangjie-stdx-bin/releases> ），当前依赖版本为 v1.1.3.1。
 
 执行 `ohpm install` 时，`scripts/pre-install.mjs` 脚本会自动完成以下操作：
 
@@ -52,11 +52,11 @@
 
 ### 1.3 三方库
 
-该库依赖brotli4cj库（<https://gitcode.host/jinmengwang/brotli4cj/tree/brotli-ffi_cangjie-plugin_5.1.1> ）。
+该库依赖brotli4cj库（<https://gitcode.com/Cangjie-TPC/brotli4cj/blob/brotli-ffi_cangjie-plugin-6.1.1_compatibility> ）。
 
 ```shell
 cd ${Project_Root_Path}
-git clone git@gitcode.host:jinmengwang/brotli4cj.git -b brotli-ffi_cangjie-plugin_5.1.1
+git clone https://gitcode.com/Cangjie-TPC/brotli4cj.git -b brotli-ffi_cangjie-plugin-6.1.1_compatibility
 ```
 
 ## 2. 用例
